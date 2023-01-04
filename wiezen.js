@@ -5,9 +5,11 @@ const HAND = 'hand'
 const TABLE = 'table'
 const TRICK = 'trick'
 const COLORS = ['♥', '♠', '♦', '♣']
-const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+//const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+const VALUES = ['10','J','Q','K','A']
 const DECK = []
 const PLAYERS = ['Joe', 'Jack', 'William', 'Avarell']
+const NUMBER_OF_TRICKS = VALUES.length
 
 COLORS.forEach((c, ci) => {
     VALUES.forEach((v, vi) => {
@@ -35,10 +37,10 @@ function getRandomIntInclusive(min, max) {
 
 function cut() {
     // pick random position in DECK
-    let p = getRandomIntInclusive(1, 51)  // p is how many cards you pick up
+    let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
     // stack positions [1..p] become [52-p+1..52]
     // stack positions [p+1..52] become [1..52-p]
-    DECK.forEach((card, cardi) => cardi <= p ? card.stack += 52 - p : card.stack -= p)
+    DECK.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
     console.log(`Deck cut at position ${p}`)
 }
 
@@ -46,6 +48,11 @@ function get_cards_in_stack_order() {
     let stack = DECK.filter(card => card.state === STACK)
     let ordered_stack = [...stack].sort((card1, card2) => card1.stack - card2.stack)
     return ordered_stack
+}
+
+function cards_in_table_order(cards) {
+    let ordered_cards = [...cards].sort((c1, c2) => c1.table - c2.table)
+    return ordered_cards
 }
 
 
@@ -64,8 +71,9 @@ function deal(players) {
         DECK.filter(card => card.color != color).forEach(card => card.trump = false)
     }
     let cards_in_stack_order = get_cards_in_stack_order()
-    set_trump(cards_in_stack_order[47].color)  // 5th-latest card in stack
-    let amounts = [4,4,5]
+    set_trump(cards_in_stack_order[4 * NUMBER_OF_TRICKS - 5].color)  // 5th-latest card in stack
+    //let amounts = [4,4,5]
+    let amounts = [2,2,1]
     amounts.forEach(amount => {
         players.forEach(player => {
             deal_cards_to_player(cards_in_stack_order.splice(0,amount), player)
@@ -100,7 +108,7 @@ function play(player) {
         playable_cards.push(...hand)
     }
     // show cards to player (indicating playable cards) with index for easy selecting
-    console.log(`Table: ${cards_to_string(cards_on_table)}`)
+    console.log(`Table: ${cards_to_string(cards_in_table_order(cards_on_table))}`)
     console.log(`Hand of ${player}: ${cards_to_string(hand)}`)
     console.log(`Play card from: ${cards_to_string(playable_cards, true)}`)
     // prompt player for input
@@ -120,11 +128,11 @@ function evaluate_trick(cards) {
     // returns the (temporary) winner of the trick composed of input cards
     function highest_value_card(cards) {
         // regardless color!
-        return cards.reduce((highest,card) => card.value > highest.value ? card : highest, cards[0])
+        return cards.reduce((highest,card) => card.order > highest.order ? card : highest, cards[0])
     }
     let highest_trump = highest_value_card(cards.filter(card => card.trump))
-    if (highest_trump && highest_trump.length > 0) 
-        return highest_trump.player
+    if (highest_trump) 
+        return highest_trump
     let opening_card = cards.filter(card => card.table === 1).pop()
     let highest = highest_value_card(cards.filter(card => card.color === opening_card.color))
     return highest
@@ -143,6 +151,14 @@ function collect_trick(trick) {
         card.winner = winning_card.player
     })
     return winning_card.player
+}
+
+function count_tricks() {
+    PLAYERS.forEach(player => {
+        let cards_won = DECK.filter(card => card.winner === player)
+        let tricks_won = cards_won.length / 4
+        console.log(`Tricks won by ${player}: ${tricks_won}`)
+    })
 }
 
 function dump() {
@@ -169,7 +185,7 @@ let players = rotate_players(next_player)
 
 deal(players)
 
-let tricks = [1,2,3,4,5,6,7,8,9,10,11,12,13]
+let tricks = [...Array(NUMBER_OF_TRICKS).keys()]  // [0,1,2,...]
 tricks.forEach(trick => {
     players.forEach(player => {
         play(player)
@@ -177,6 +193,8 @@ tricks.forEach(trick => {
     next_player = collect_trick(trick)
     players = rotate_players(next_player)
 })
+
+count_tricks()
 
 dump()
 
