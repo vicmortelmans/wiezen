@@ -1,12 +1,22 @@
 const PROMPT = require("prompt-sync")({ sigint: true });
-
+const PAS = 'pas'
+const VRAAG = 'vraag'
+const ABONDANCE = 'abondance'
+const ABONDANCE_TROEF = 'abondance in troef'
+const MISERIE = 'miserie'
+const TROEL = 'troel'
+const MISERIE_TAFEL = 'miserie op tafel'
+const SOLO = 'solo'
+const SOLO_SLIM = 'solo slim'
+const MEE = 'meegaan'
+const GAMES = [VRAAG, ABONDANCE, ABONDANCE_TROEF, MISERIE, TROEL, MISERIE_TAFEL, SOLO, SOLO_SLIM, PAS]
 const STACK = 'stack'
 const HAND = 'hand'
 const TABLE = 'table'
 const TRICK = 'trick'
 const COLORS = ['♥', '♠', '♦', '♣']
-//const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
-const VALUES = ['10','J','Q','K','A']
+const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+//const VALUES = ['10','J','Q','K','A']
 const DECK = []
 const PLAYERS = ['Joe', 'Jack', 'William', 'Avarell']
 const NUMBER_OF_TRICKS = VALUES.length
@@ -28,6 +38,8 @@ COLORS.forEach((c, ci) => {
         })
     })
 })
+
+
 
 function getRandomIntInclusive(min, max) {
     min = Math.ceil(min);
@@ -55,7 +67,6 @@ function cards_in_table_order(cards) {
     return ordered_cards
 }
 
-
 function deal(players) {
     // player after dealer is first player
     function deal_cards_to_player(cards_list, player) {
@@ -71,9 +82,9 @@ function deal(players) {
         DECK.filter(card => card.color != color).forEach(card => card.trump = false)
     }
     let cards_in_stack_order = get_cards_in_stack_order()
-    set_trump(cards_in_stack_order[4 * NUMBER_OF_TRICKS - 5].color)  // 5th-latest card in stack
-    //let amounts = [4,4,5]
-    let amounts = [2,2,1]
+    set_trump(cards_in_stack_order[4 * NUMBER_OF_TRICKS - 1].color)  // latest card in stack
+    let amounts = [4,4,5]  // should be calculated based on NUMBER_OF_TRICKS for debugging fast games
+    //let amounts = [2,2,1]
     amounts.forEach(amount => {
         players.forEach(player => {
             deal_cards_to_player(cards_in_stack_order.splice(0,amount), player)
@@ -81,12 +92,67 @@ function deal(players) {
     })
 }
 
-function cards_to_string(cards, numbered) {
+function bid() {
+    let game = null
+    let game_players = []
+    let games_open = [...GAMES]
+    let players_bidding = [...PLAYERS]
+    do {
+        players_bidding.every(player => {
+            if (game_players.includes(player)) 
+                return true  // continue with next player
+            if ([VRAAG, MISERIE, MISERIE_TAFEL].includes(game))
+                if ( ! (game === VRAAG && game_players.length >= 2) )
+                    games_open.push(MEE)
+            console.log(`Game bid: ${game}`)
+            console.log(`By: ${game_players.toString()}`)
+            console.log(`Higher bid is open to: ${player}`)
+            console.log(`Open games: ${list_to_string_numbered(games_open)}`)
+            let idx
+            do {
+                idx = parseInt(PROMPT("Which game do you bid for? "));
+            } while (isNaN(idx) || idx < 0 || idx >= games_open.length)
+            let bid = games_open[idx]
+            switch (bid) {
+                case MEE:
+                    game_players.push(player)
+                    break
+                case PAS:
+                    players_bidding = players_bidding.filter(p => p != player)
+                    break
+                case VRAAG:
+                case ABONDANCE:
+                case ABONDANCE_TROEF:
+                case MISERIE:
+                case TROEL:
+                case MISERIE_TAFEL:
+                case SOLO:
+                case SOLO_SLIM:
+                    game = bid
+                    game_players = [player]
+                    while (games_open[0] != bid) games_open.shift()
+                    games_open.shift()  // remove VRAAG and all lower games
+            }
+            if (players_bidding.length === 0)
+                return false  // break
+            else
+                return true  // continue
+        })        
+    } while (players_bidding.length > 0)
+    console.log(`Game set: ${game}`)
+    console.log(`Player(s): ${game_players}`)
+    return game, game_players
+}
+
+function cards_to_string(cards, {numbered = false} = {}) {
     return cards.map((card, cardi) => card.color + card.value 
         + (card.trump?'*':'') 
         + (numbered?`[${cardi}]`:'')).toString()
 }
 
+function list_to_string_numbered(list) {
+    return list.map((item, itemi) => item + `[${itemi}]`).toString()
+}
 
 function play(player) {
     // look at table cards to set playable 
@@ -110,7 +176,7 @@ function play(player) {
     // show cards to player (indicating playable cards) with index for easy selecting
     console.log(`Table: ${cards_to_string(cards_in_table_order(cards_on_table))}`)
     console.log(`Hand of ${player}: ${cards_to_string(hand)}`)
-    console.log(`Play card from: ${cards_to_string(playable_cards, true)}`)
+    console.log(`Play card from: ${cards_to_string(playable_cards, {numbered: true})}`)
     // prompt player for input
     let idx
     do {
@@ -178,23 +244,36 @@ function rotate_players(first_player) {
     return players
 }
 
-cut()
+function player_after(player) {
+    let players = rotate_players(player)
+    return players[1]
+}
 
-let next_player = PLAYERS[2]
-let players = rotate_players(next_player)
+let dealer = PLAYERS[1]
 
-deal(players)
+while (true) {
+    cut()
 
-let tricks = [...Array(NUMBER_OF_TRICKS).keys()]  // [0,1,2,...]
-tricks.forEach(trick => {
-    players.forEach(player => {
-        play(player)
+    let players = rotate_players(player_after(dealer))
+    
+    deal(players)
+    
+    dump()
+
+    let game, game_players = bid()
+    
+    
+    let tricks = [...Array(NUMBER_OF_TRICKS).keys()].map(n => n+1)  // [1,2,...,13]
+    tricks.forEach(trick => {
+        players.forEach(player => {
+            play(player)
+        })
+        next_player = collect_trick(trick)
+        players = rotate_players(next_player)  // winner is opening next
     })
-    next_player = collect_trick(trick)
-    players = rotate_players(next_player)
-})
+    
+    count_tricks()
 
-count_tricks()
-
-dump()
+    dealer = player_after(dealer)
+}
 
