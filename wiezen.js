@@ -101,21 +101,23 @@ function bid() {
         players_bidding.every(player => {
             if (game_players.includes(player)) 
                 return true  // continue with next player
+            let games_open_mee = [...games_open]
             if ([VRAAG, MISERIE, MISERIE_TAFEL].includes(game))
                 if ( ! (game === VRAAG && game_players.length >= 2) )
-                    games_open.push(MEE)
+                    games_open_mee.push(MEE)
             console.log(`Game bid: ${game}`)
             console.log(`By: ${game_players.toString()}`)
             console.log(`Higher bid is open to: ${player}`)
-            console.log(`Open games: ${list_to_string_numbered(games_open)}`)
+            console.log(`Open games: ${list_to_string_numbered(games_open_mee)}`)
             let idx
             do {
                 idx = parseInt(PROMPT("Which game do you bid for? "));
-            } while (isNaN(idx) || idx < 0 || idx >= games_open.length)
-            let bid = games_open[idx]
+            } while (isNaN(idx) || idx < 0 || idx >= games_open_mee.length)
+            let bid = games_open_mee[idx]
             switch (bid) {
                 case MEE:
                     game_players.push(player)
+                    players_bidding = players_bidding.filter(p => p != player)
                     break
                 case PAS:
                     players_bidding = players_bidding.filter(p => p != player)
@@ -128,10 +130,14 @@ function bid() {
                 case MISERIE_TAFEL:
                 case SOLO:
                 case SOLO_SLIM:
+                    if (game_players.length > 0)
+                        // players that have bid a lower game can bid again
+                        players_bidding.push(...game_players)
                     game = bid
                     game_players = [player]
+                    players_bidding = players_bidding.filter(p => p != player)
                     while (games_open[0] != bid) games_open.shift()
-                    games_open.shift()  // remove VRAAG and all lower games
+                    games_open.shift()  // remove this game and lower games
             }
             if (players_bidding.length === 0)
                 return false  // break
