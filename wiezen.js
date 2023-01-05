@@ -143,7 +143,9 @@ function bid() {
                 return false  // break
             else
                 return true  // continue
-        })        
+        })
+        // after a first round, troel should be removed
+        games_open = games_open.filter(game => game != TROEL)    
     } while (players_bidding.length > 0)
     console.log(`Game set: ${game}`)
     console.log(`Player(s): ${game_players}`)
