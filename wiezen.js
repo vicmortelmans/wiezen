@@ -21,23 +21,48 @@ const DECK = []
 const PLAYERS = ['Joe', 'Jack', 'William', 'Avarell']
 const NUMBER_OF_TRICKS = VALUES.length
 
-COLORS.forEach((c, ci) => {
-    VALUES.forEach((v, vi) => {
-        DECK.push({
-            color: c,
-            value: v,
-            order: 13 * ci + vi,  // only for comparing
-            state: STACK,
-            trump: null,  // boolean
-            stack: 13 * ci + vi + 1,  // range 1..52
-            hand: null,  // name of the player
-            table: null,  // range 1..4
-            player: null, // name of the player
-            trick: null, // range 1..13
-            winner: null  // name of the player
+class Wiezen {
+    #deck  // object
+    #players  // array of strings
+    #dealer  // string
+    
+    constructor(players) {
+        this.#players = [...players]
+        this.#dealer = this.#players[1]
+        this.#deck = []
+        COLORS.forEach((c, ci) => {
+            VALUES.forEach((v, vi) => {
+                this.#deck.push({
+                    color: c,
+                    value: v,
+                    order: 13 * ci + vi,  // only for comparing
+                    state: STACK,
+                    trump: null,  // boolean
+                    stack: 13 * ci + vi + 1,  // range 1..52
+                    hand: null,  // name of the player
+                    table: null,  // range 1..4
+                    player: null, // name of the player
+                    trick: null, // range 1..13
+                    winner: null  // name of the player
+                })
+            })
         })
-    })
-})
+    }
+
+    dealer() {
+        return this.#dealer
+    }
+
+    cut() {
+        // pick random position in DECK
+        let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
+        // stack positions [1..p] become [52-p+1..52]
+        // stack positions [p+1..52] become [1..52-p]
+        this.#deck.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
+        console.log(`Deck cut at position ${p}`)
+    }
+}
+
 
 
 
@@ -47,14 +72,7 @@ function getRandomIntInclusive(min, max) {
     return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
 }
 
-function cut() {
-    // pick random position in DECK
-    let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
-    // stack positions [1..p] become [52-p+1..52]
-    // stack positions [p+1..52] become [1..52-p]
-    DECK.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
-    console.log(`Deck cut at position ${p}`)
-}
+
 
 function get_cards_in_stack_order() {
     let stack = DECK.filter(card => card.state === STACK)
@@ -137,7 +155,7 @@ function bid() {
                     game_players = [player]
                     players_bidding = players_bidding.filter(p => p != player)
                     while (games_open[0] != bid) games_open.shift()
-                    games_open.shift()  // remove this game and lower games
+                        games_open.shift()  // remove this game and lower games
             }
             if (players_bidding.length === 0)
                 return false  // break
@@ -257,10 +275,13 @@ function player_after(player) {
     return players[1]
 }
 
-let dealer = PLAYERS[1]
+let wiezen = new Wiezen(['Joe', 'Jack', 'William', 'Avarell'])
+
+let dealer = wiezen.dealer()
 
 while (true) {
-    cut()
+
+    wiezen.cut()
 
     let players = rotate_players(player_after(dealer))
     
