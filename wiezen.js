@@ -74,7 +74,6 @@ function deal(players) {
             // MOVE CARD FROM STACK TO HAND
             card.state = HAND
             card.hand = player
-            card.stack = null
         })
     }
     function set_trump(color) {
@@ -164,8 +163,8 @@ function list_to_string_numbered(list) {
 
 function play(player) {
     // look at table cards to set playable 
-    let cards_on_table = DECK.filter(card => card.table != null)
-    let hand = DECK.filter(card => card.hand === player)
+    let cards_on_table = DECK.filter(card => card.state === TABLE)
+    let hand = DECK.filter(card => card.state === HAND && card.hand === player)
     let playable_cards = []
     if (cards_on_table.length > 0) {
         // only cards with same color as opening card are playable
@@ -195,7 +194,6 @@ function play(player) {
     card.state = TABLE
     card.table = cards_on_table.length + 1
     card.player = player
-    card.hand = null
 }
 
 function evaluate_trick(cards) {
@@ -214,13 +212,12 @@ function evaluate_trick(cards) {
 
 function collect_trick(trick) {
     // evaluate trick to identify winner 
-    let cards_on_table = DECK.filter(card => card.table != null)
+    let cards_on_table = DECK.filter(card => card.state === TABLE)
     let winning_card = evaluate_trick(cards_on_table)
     console.log(`Trick won by ${winning_card.player} (${cards_to_string([winning_card])}): ${cards_to_string(cards_on_table)}`)
     cards_on_table.forEach(card => {
         // MOVE CARD FROM TABLE TO TRICKS
         card.state = TRICK
-        card.table = null
         card.trick = trick
         card.winner = winning_card.player
     })
@@ -232,6 +229,17 @@ function count_tricks() {
         let cards_won = DECK.filter(card => card.winner === player)
         let tricks_won = cards_won.length / 4
         console.log(`Tricks won by ${player}: ${tricks_won}`)
+    })
+    // MOVE CARDS FROM TRICKS TO STACK
+    DECK.forEach(card => {
+        card.state = STACK
+        card.trump = null
+        card.stack = 13 * (card.trick - 1) + card.table - 1
+        card.hand = null
+        card.table = null
+        card.player = null
+        card.trick = null
+        card.winner = null
     })
 }
 
