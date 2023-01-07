@@ -1,5 +1,6 @@
 const PROMPT = require("prompt-sync")({ sigint: true });
 const PAS = 'pas'
+const RONDEPAS = 'rondje pas'
 const VRAAG = 'vraag'
 const ABONDANCE_H = 'abondance in ♥'
 const ABONDANCE_S = 'abondance in ♠'
@@ -35,7 +36,10 @@ class Wiezen {
     #players  // array of strings ** DO NOT CHANGE ** 
     #dealer  // string ** THIS IS UPDATED AFTER EACH GAME **
     #trump
-    #score
+    #score  // scores by player
+    #game_number  // numbering games 0,1,2,...; a game number stands until a game is actually played!
+    #rondepas_count  // counting subsequent rondepas
+    #scorefactors  // array of multipliers for each game
     
     constructor(players) {
         this.#players = [...players]
@@ -43,6 +47,9 @@ class Wiezen {
         this.#trump = null
         this.#deck = []
         this.#score = {}
+        this.#game_number = 0
+        this.#rondepas_count = 0
+        this.#scorefactors = []
         COLORS.forEach((c, ci) => {
             VALUES.forEach((v, vi) => {
                 this.#deck.push({
@@ -60,6 +67,7 @@ class Wiezen {
                 })
             })
         })
+        players.forEach(player => this.#score[player] = 0)
     }
 
     dealer() {
@@ -110,13 +118,14 @@ class Wiezen {
     initialize_bid() {
         let games = [...GAMES].filter(game => !game.includes(this.#trump))
         return {
-            game: null,
+            game: PAS,
             game_players: [],
             games_open: games,
             games_open_mee: null,
             players_bidding: [...this.#players],  // /!\ not necessarily in right order yet !
             player: this.#dealer,  // player after dealer is to bid first 
-            count_bids: 0           
+            count_bids: 0,
+            score_factor: this.#scorefactors[this.#game_number]       
         }
     }
 
@@ -223,6 +232,10 @@ class Wiezen {
                 this.#set_trump(null)
                 break
         }
+        // only rondje pas if no one made a bid!
+        if (bidding_state.game === PAS && bidding_state.count_bids === 4)
+            bidding_state.game = RONDEPAS
+        // collect hands for output
         let hands = {}
         players.forEach(player => {
             hands[player] = this.#deck.filter(card => card.hand === player)
@@ -296,6 +309,177 @@ class Wiezen {
         return state
     }
 
+    score(state) {
+        let players = state.game_players
+        let opponents = this.#players.filter(player => !player in state.game_players)
+        let tricks_per_player = {}
+        let game_player_tricks = 0
+        this.#players.forEach(player => {
+            let tricks_won = this.#deck.filter(card => card.winner === player).length / 4
+            tricks_per_player[player] = tricks_won
+            if (player in players)
+                game_player_tricks += tricks_won
+        })
+        let score = {}
+        players.forEach(player => score[player] = 0)
+        switch (state.game) {
+            case VRAAG:
+                if (players.length === 1) { //  alleen gaan
+                    if (game_player_tricks === 13) {  // onder tafel
+                        players.forEach(player => score[player] += 60)
+                        opponents.forEach(opponent => score[opponent] -= 20)
+                    }
+                    else if (game_player_tricks >= 8) {  // gewonnen
+                        let extra = game_player_tricks - 8
+                        players.forEach(player => score[player] += 3 * (3 + extra))
+                        opponents.forEach(opponent => score[opponent] -= 3 + extra)
+                    }
+                    else {  // verloren
+                        let extra = 8 - game_player_tricks
+                        players.forEach(player => score[player] -= 3 * (2 + extra))
+                        opponents.forEach(opponent => score[opponent] += 2 + extra)
+                    }
+                }
+                else {  // meegaan
+                    if (game_player_tricks === 13) {  // onder tafel
+                        players.forEach(player => score[player] += 14)
+                        opponents.forEach(opponent => score[opponent] -= 14)
+                    }
+                    else if (game_player_tricks >= 8) {  // gewonnen
+                        let extra = game_player_tricks - 8
+                        players.forEach(player => score[player] += 2 + extra)
+                        opponents.forEach(opponent => score[opponent] -= 2 + extra)
+                    }
+                    else {  // verloren
+                        let extra = 8 - game_player_tricks
+                        players.forEach(player => score[player] -= 2 + extra)
+                        opponents.forEach(opponent => score[opponent] += 2 + extra)
+                    }
+                }
+                break
+            case ABONDANCE_H:
+            case ABONDANCE_S:
+            case ABONDANCE_D:
+            case ABONDANCE_C:
+            case ABONDANCE_TROEF:
+                if (game_player_tricks >= 9) {  // gewonnen
+                    players.forEach(player => score[player] += 3 * (5))
+                    opponents.forEach(opponent => score[opponent] -= 5)
+                }
+                else {  // verloren
+                    players.forEach(player => score[player] -= 3 * (5))
+                    opponents.forEach(opponent => score[opponent] += 5)
+                }
+                break
+            case TROEL:
+                if (game_player_tricks === 13) {  // onder tafel
+                    players.forEach(player => score[player] += 2 * 14)
+                    opponents.forEach(opponent => score[opponent] -= 2 * 14)
+                }
+                else if (game_player_tricks >= 8) {  // gewonnen
+                    let extra = game_player_tricks - 8
+                    players.forEach(player => score[player] += 2 * (2 + extra))
+                    opponents.forEach(opponent => score[opponent] -= 2 * (2 + extra))
+                }
+                else {  // verloren
+                    let extra = 8 - game_player_tricks
+                    players.forEach(player => score[player] -= 2 * (2 + extra))
+                    opponents.forEach(opponent => score[opponent] += 2 * (2 + extra))
+                }
+                break
+            case MISERIE:
+                game_players.forEach(player => {
+                    let single_player_opponents = this.#players.filter(player => player != player)
+                    if (tricks_per_player[player] === 0) {  // gewonnen
+                        score[player] += 3 * (5)
+                        single_player_opponents.forEach(opponent => score[opponent] -= 5)
+                    } else {  // verloren
+                        score[player] -= 3 * (5)
+                        single_player_opponents.forEach(opponent => score[opponent] += 5)
+                    }
+                })
+                break
+            case MISERIE_TAFEL:
+                game_players.forEach(player => {
+                    let single_player_opponents = this.#players.filter(player => player != player)
+                    if (tricks_per_player[player] === 0) {  // gewonnen
+                        score[player] += 3 * (15)
+                        single_player_opponents.forEach(opponent => score[opponent] -= 15)
+                    } else {  // verloren
+                        score[player] -= 3 * (15)
+                        single_player_opponents.forEach(opponent => score[opponent] += 15)
+                    }
+                })
+                break
+            case SOLO_H:
+            case SOLO_S:
+            case SOLO_D:
+            case SOLO_C:
+                if (game_player_tricks === 13) {  // gewonnen
+                    players.forEach(player => score[player] += 3 * (75))
+                    opponents.forEach(opponent => score[opponent] -= 75)
+                }
+                else {  // verloren
+                    players.forEach(player => score[player] -= 3 * (75))
+                    opponents.forEach(opponent => score[opponent] += 75)
+                }
+                break
+            case SOLO_SLIM:
+                if (game_player_tricks === 13) {  // gewonnen
+                    players.forEach(player => score[player] += 3 * (150))
+                    opponents.forEach(opponent => score[opponent] -= 150)
+                }
+                else {  // verloren
+                    players.forEach(player => score[player] -= 3 * (150))
+                    opponents.forEach(opponent => score[opponent] += 150)
+                }
+                break
+        }
+        // apply multiplier
+        this.#players.forEach(player => {
+            score[player] *= this.#scorefactors[this.#game_number]
+        })
+        // cumulative score
+        this.#players.forEach(player => {
+            this.#score[player] += score[player]
+        })
+        return score, this.#score
+    }
+
+    new_game(state) {
+        // MOVE CARDS FROM TRICKS TO STACK
+        this.#deck.forEach(card => {
+            card.state = STACK
+            card.trump = null
+            card.stack = 13 * (card.trick - 1) + card.table - 1
+            card.hand = null
+            card.table = null
+            card.player = null
+            card.trick = null
+            card.winner = null
+        })
+        this.#trump = null
+        switch (state.game) {
+            case PAS:
+                this.#dealer = this.player_after(this.#dealer)
+                this.#rondepas_count = 0
+                break
+            case RONDEPAS && this.#rondepas_count >= 3:
+                this.#dealer = this.player_after(this.#dealer)
+                this.#scorefactors[this.#game_number + this.#rondepas_count]++
+                this.#rondepas_count++
+                break
+            case RONDEPAS:
+                this.#scorefactors[this.#game_number + this.#rondepas_count]++
+                this.#rondepas_count++
+                break
+            default:
+                this.#dealer = this.player_after(this.#dealer)
+                this.#rondepas_count = 0
+                this.#game_number++
+        }
+    }
+
     #evaluate_trick(cards) {
         // returns the (temporary) winner of the trick composed of input cards
         function highest_value_card(cards) {
@@ -351,34 +535,11 @@ function list_to_string_numbered(list) {
     return list.map((item, itemi) => item + `[${itemi}]`).toString()
 }
 
-function count_tricks() {
-    PLAYERS.forEach(player => {
-        let cards_won = DECK.filter(card => card.winner === player)
-        let tricks_won = cards_won.length / 4
-        console.log(`Tricks won by ${player}: ${tricks_won}`)
-    })
-    // MOVE CARDS FROM TRICKS TO STACK
-    DECK.forEach(card => {
-        card.state = STACK
-        card.trump = null
-        card.stack = 13 * (card.trick - 1) + card.table - 1
-        card.hand = null
-        card.table = null
-        card.player = null
-        card.trick = null
-        card.winner = null
-    })
-}
-
 let players = ['Joe', 'Jack', 'William', 'Avarell']
 
 let wiezen = new Wiezen(players)
 
-let dealer = wiezen.dealer()
-
 while (true) {
-
-    players = wiezen.rotate_players(wiezen.player_after(dealer))
 
     wiezen.cut()
 
@@ -398,6 +559,9 @@ while (true) {
         console.log(`By: ${bidding_state.game_players.toString()}`)
         console.log(`Higher bid is open to: ${bidding_state.player}`)
         console.log(`Open games: ${list_to_string_numbered(bidding_state.games_open_mee)}`)
+        if (bidding_state.score_factor) {
+            console.log(`Score factor: ${bidding_state.score_factor}`)
+        }
         let idx
         do {
             idx = parseInt(PROMPT("Which game do you bid for? "));
@@ -408,55 +572,55 @@ while (true) {
 
     } while (bidding_state.players_bidding.length > 0)
 
-    if (!bidding_state.game) continue  // "rondje pas"
-
     let play_state = wiezen.initialize_play(bidding_state)
 
-    console.log(`Game set: ${play_state.game}`)
-    console.log(`Player(s): ${play_state.game_players}`)
-    console.log(`Trump: ${play_state.trump}`)
+    if (play_state.game != RONDEPAS && play_state.game != PAS) {
 
-    do {
+        console.log(`Game set: ${play_state.game}`)
+        console.log(`Player(s): ${play_state.game_players}`)
+        console.log(`Trump: ${play_state.trump}`)
 
-        play_state = wiezen.play_request(play_state)
-
-        console.log(`Table: ${cards_to_string(play_state.cards_on_table)}`)
-        console.log(`Hand of ${play_state.player}: ${cards_to_string(play_state.hands[play_state.player])}`)
-        console.log(`Play card from: ${cards_to_string(play_state.playable_cards, {numbered: true})}`)
-        let idx
         do {
-            idx = parseInt(PROMPT("Which card will you play? "));
-        } while (isNaN(idx) || idx < 0 || idx >= play_state.playable_cards.length)
-        let card = play_state.playable_cards[idx]
 
-        play_state = wiezen.play(play_state, card)
+            play_state = wiezen.play_request(play_state)
 
-        if (play_state.cards_on_table.length === 4) {
+            console.log(`Table: ${cards_to_string(play_state.cards_on_table)}`)
+            console.log(`Hand of ${play_state.player}: ${cards_to_string(play_state.hands[play_state.player])}`)
+            console.log(`Play card from: ${cards_to_string(play_state.playable_cards, {numbered: true})}`)
+            let idx
+            do {
+                idx = parseInt(PROMPT("Which card will you play? "));
+            } while (isNaN(idx) || idx < 0 || idx >= play_state.playable_cards.length)
+            let card = play_state.playable_cards[idx]
 
-            console.log(`Trick won by ${play_state.winning_card.player} (${cards_to_string([play_state.winning_card])}): ${cards_to_string(play_state.cards_on_table)}`)
+            play_state = wiezen.play(play_state, card)
 
-            play_state = wiezen.collect_trick(play_state)
+            if (play_state.cards_on_table.length === 4) {
 
-        }
+                console.log(`Trick won by ${play_state.winning_card.player} (${cards_to_string([play_state.winning_card])}): ${cards_to_string(play_state.cards_on_table)}`)
 
-    } while (play_state.count_tricks < NUMBER_OF_TRICKS)
+                play_state = wiezen.collect_trick(play_state)
 
-    
-    
+            }
 
-/*   
-    let tricks = [1,2,3,4,5,6,7,8,9,10,11,12,13]
-    tricks.forEach(trick => {
+        } while (play_state.count_tricks < NUMBER_OF_TRICKS)
+
+        score, cumulative_score = wiezen.score(play_state)
+
         players.forEach(player => {
-            play(player)
+            console.log(`Score of ${player}: ${score[player]}`)
         })
-        next_player = collect_trick(trick)
-        players = rotate_players(next_player)  // winner is opening next
-    })
+        players.forEach(player => {
+            console.log(`Total score of ${player}: ${cumulative_score[player]}`)
+        })
     
-    count_tricks()
+    } else {
 
-    dealer = player_after(dealer)
-*/
+        console.log(`Game set: ${play_state.game}`)
+        
+    }
+
+    wiezen.new_game(play_state)
+    
 }
 
