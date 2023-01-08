@@ -1,4 +1,3 @@
-const PROMPT = require("prompt-sync")({ sigint: true });
 const PAS = 'pas'
 const RONDEPAS = 'ronde pas'
 const VRAAG = 'vraag'
@@ -255,12 +254,13 @@ class Wiezen {
             bidding_state.game = RONDEPAS
         // collect hands for output
         let hands = {}
-        players.forEach(player => hands[player] = this.#deck.filter(card => card.hand === player))
+        this.#players.forEach(player => hands[player] = this.#deck.filter(card => card.hand === player))
         // initialize tricks per player
         let tricks_per_player = {}
-        players.forEach(player => tricks_per_player[player] = 0)
+        this.#players.forEach(player => tricks_per_player[player] = 0)
         return {
             game: bidding_state.game,
+            game_playable: bidding_state.game in [PAS, RONDEPAS] ? false : true,
             game_players: bidding_state.game_players,
             trump: this.#trump,
             player: null,
@@ -270,7 +270,8 @@ class Wiezen {
             winning_card: null,
             hands: hands,
             tricks_per_player: tricks_per_player,
-            count_tricks: 0  // is assigned to cards won in trick # [1..13]; incremented when collecting trick
+            count_tricks: 0,  // is assigned to cards won in trick # [1..13]; incremented when collecting trick,
+            game_done: false
         }
     }
 
@@ -302,10 +303,10 @@ class Wiezen {
         card.state = TABLE
         card.table = state.cards_on_table.length + 1
         card.player = state.player
-        let hands = {}
-        players.forEach(player => hands[player] = this.#deck.filter(card => card.state === HAND && card.hand === player))
         state.playable_cards = null
         state.cards_on_table.push(card)
+        let hands = {}
+        this.#players.forEach(player => hands[player] = this.#deck.filter(card => card.state === HAND && card.hand === player))
         state.hands = hands
         let winning_card = this.#evaluate_trick(state.cards_on_table)
         state.winning_card = winning_card
@@ -325,10 +326,12 @@ class Wiezen {
         state.cards_on_table = []
         state.winning_card = null
         state.count_tricks++
+        state.game_done = state.count_tricks >= NUMBER_OF_TRICKS
         return state
     }
 
     score(state) {
+        /* https://www.rijkvanafdronk.be//puntentelling/puntentelling/ */
         let old_cumulative_score = {...this.#score}
         let players = state.game_players
         let opponents = this.#players.filter(player => !player in state.game_players)
@@ -550,115 +553,5 @@ class Wiezen {
     
 }
 
-function cards_to_string(cards, {numbered = false} = {}) {
-    return cards.map((card, cardi) => card.color + card.value 
-        + (card.trump?'*':'') 
-        + (numbered?`[${cardi}]`:'')).toString()
-}
-
-function list_to_string_numbered(list) {
-    return list.map((item, itemi) => item + `[${itemi}]`).toString()
-}
-
-let players = ['Joe', 'Jack', 'William', 'Avarell']
-
-let wiezen = new Wiezen(players)
-
-while (true) {
-
-    wiezen.cut()
-
-    let hands = wiezen.deal()
-
-    players.forEach(player => {
-        console.log(`Hand of ${player}: ${cards_to_string(hands[player])}`)
-    })
-
-    let bidding_state = wiezen.initialize_bid()
-
-    do {
-
-        bidding_state = wiezen.bid_request(bidding_state)
-
-        console.log(`Game bid: ${bidding_state.game}`)
-        console.log(`By: ${bidding_state.game_players.toString()}`)
-        console.log(`Higher bid is open to: ${bidding_state.player}`)
-        console.log(`Open games: ${list_to_string_numbered(bidding_state.games_open_mee)}`)
-        if (bidding_state.score_factor) {
-            console.log(`Score factor: ${bidding_state.score_factor}`)
-        }
-        let idx
-        do {
-            idx = parseInt(PROMPT("Which game do you bid for? "));
-        } while (isNaN(idx) || idx < 0 || idx >= bidding_state.games_open_mee.length)
-        let bid = bidding_state.games_open_mee[idx]
-            
-        bidding_state = wiezen.bid(bidding_state, bid)
-
-    } while (bidding_state.players_bidding.length > 0)
-
-    let play_state = wiezen.initialize_play(bidding_state)
-
-    if (play_state.game != RONDEPAS && play_state.game != PAS) {
-
-        console.log(`Game set: ${play_state.game}`)
-        console.log(`Player(s): ${play_state.game_players}`)
-        console.log(`Trump: ${play_state.trump}`)
-
-        do {
-
-            play_state = wiezen.play_request(play_state)
-
-            console.log(`Table: ${cards_to_string(play_state.cards_on_table)}`)
-            console.log(`Hand of ${play_state.player}: ${cards_to_string(play_state.hands[play_state.player])}`)
-            console.log(`Play card from: ${cards_to_string(play_state.playable_cards, {numbered: true})}`)
-            let idx
-            do {
-                idx = parseInt(PROMPT("Which card will you play? "));
-            } while (isNaN(idx) || idx < 0 || idx >= play_state.playable_cards.length)
-            let card = play_state.playable_cards[idx]
-
-            play_state = wiezen.play(play_state, card)
-
-            if (play_state.cards_on_table.length === 4) {
-
-                console.log(`Trick won by ${play_state.winning_card.player} (${cards_to_string([play_state.winning_card])}): ${cards_to_string(play_state.cards_on_table)}`)
-
-                play_state = wiezen.collect_trick(play_state)
-
-                players.forEach(player => {
-                    console.log(`Tricks won by ${player}: ${play_state.tricks_per_player[player]}`)
-                })
-        
-            }
-
-        } while (play_state.count_tricks < NUMBER_OF_TRICKS)
-
-        let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.score(play_state)
-
-        players.forEach(player => {
-            console.log(`Tricks won by ${player}: ${tricks_per_player[player]}`)
-        })
-        players.forEach(player => {
-            console.log(`Score of ${player}: ${score[player]}`)
-        })
-        if (score_factor) {
-            console.log(`Score factor: ${score_factor}`)
-        }
-        players.forEach(player => {
-            console.log(`Total original score of ${player}: ${old_cumulative_score[player]}`)
-        })
-        players.forEach(player => {
-            console.log(`Total new score of ${player}: ${new_cumulative_score[player]}`)
-        })
-    
-    } else {
-
-        console.log(`Game set: ${play_state.game}`)
-        
-    }
-
-    wiezen.new_game(play_state)
-    
-}
+module.exports = Wiezen
 
