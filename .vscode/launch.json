@@ -6,13 +6,10 @@
     "configurations": [
         {
             "type": "node",
-            "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/wiezen.js",
-            "console": "integratedTerminal" 
+            "request": "attach",
+            "name": "Attach to process",
+            "restart": true,
+            "port": 9229
         }
     ]
 }
