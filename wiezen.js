@@ -326,7 +326,7 @@ class Wiezen {
         this.#players.forEach(player => tricks_per_player[player] = 0)
         return {
             game: bidding_state.game,
-            game_playable: bidding_state.game in [PAS, RONDEPAS] ? false : true,
+            game_playable: [PAS, RONDEPAS].includes(bidding_state.game) ? false : true,
             game_players: bidding_state.game_players,
             trump: this.#trump,
             player: null,
@@ -438,7 +438,7 @@ class Wiezen {
         /* https://www.rijkvanafdronk.be//puntentelling/puntentelling/ */
         let old_cumulative_score = {...this.#score}
         let players = state.game_players
-        let opponents = this.#players.filter(player => !player in state.game_players)
+        let opponents = this.#players.filter(player => !state.game_players.includes(player))
         let game_player_tricks = 0
         players.forEach(player => {
             game_player_tricks += state.tricks_per_player[player]

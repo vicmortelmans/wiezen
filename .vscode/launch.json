@@ -10,6 +10,16 @@
             "name": "Attach to process",
             "restart": true,
             "port": 9229
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/console.js",
+            "console": "integratedTerminal" 
         }
     ]
 }
