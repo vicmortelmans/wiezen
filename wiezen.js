@@ -43,6 +43,8 @@ class Wiezen {
     #game_number  // numbering games 0,1,2,...; a game number stands until a game is actually played!
     #rondepas_count  // counting subsequent rondepas
     #scorefactors  // array of multipliers for each game
+    #bidding  // object managing state during bidding workflow
+    #playing  // object managing state during playing workflow
     
     /**
      * Constructor of a Wiezen object.
@@ -57,6 +59,9 @@ class Wiezen {
         this.#game_number = 0
         this.#rondepas_count = 0
         this.#scorefactors = []
+        this.#bidding = {}
+        this.#playing = {}
+        // create the deck of cards:
         COLORS.forEach((c, ci) => {
             VALUES.forEach((v, vi) => {
                 this.#deck.push({
@@ -74,6 +79,7 @@ class Wiezen {
                 })
             })
         })
+        // initialize score
         players.forEach(player => this.#score[player] = 0)
     }
 
@@ -141,7 +147,7 @@ class Wiezen {
      */
     initialize_bid() {
         let games = [...GAMES].filter(game => !game.includes(this.#trump))
-        return {
+        this.#bidding = {
             game: PAS,
             game_players: [],
             games_open: games,
@@ -151,30 +157,30 @@ class Wiezen {
             count_bids: 0,
             score_factor: this.#scorefactors[this.#game_number]       
         }
+        return this.#bidding
     }
 
     /**
      * Prepare data for the next bid: 
      * - which player is up for a new bid (player)? 
      * - which games can be bid (games_open_mee)?
-     * @param {object} state - object for keeping track of the bidding workflow
      * @returns {object} state - object for keeping track of the bidding workflow
      */
-    bid_request(state) {
-        state.games_open_mee = [...state.games_open]
-        if (state.games_open.includes(ALLEEN)) {
-            state.player = state.game_players[0]
+    bid_request() {
+        this.#bidding.games_open_mee = [...this.#bidding.games_open]
+        if (this.#bidding.games_open.includes(ALLEEN)) {
+            this.#bidding.player = this.#bidding.game_players[0]
         } else {
             // next player in players_bidding who is not a game player is to bid now 
             do { 
-                state.player = this.player_after(state.player, {list: state.players_bidding})
-            } while (state.game_players.includes(state.player))
+                this.#bidding.player = this.player_after(this.#bidding.player, {list: this.#bidding.players_bidding})
+            } while (this.#bidding.game_players.includes(this.#bidding.player))
             // add MEE when applicable (VRAGEN only allows one player to bid MEE)
-            if ([VRAAG, MISERIE, MISERIE_TAFEL].includes(state.game))
-                if ( ! (state.game === VRAAG && state.game_players.length >= 2) )
-                    state.games_open_mee.push(MEE)
+            if ([VRAAG, MISERIE, MISERIE_TAFEL].includes(this.#bidding.game))
+                if ( ! (this.#bidding.game === VRAAG && this.#bidding.game_players.length >= 2) )
+                this.#bidding.games_open_mee.push(MEE)
         }
-        return state
+        return this.#bidding
     }
 
     /**
@@ -183,24 +189,23 @@ class Wiezen {
      * - which players are participating (game_players)? 
      * - which players can still place a new bid (players_bidding)?
      * - which games can be bid (games_open)?
-     * @param {object} state - object for keeping track of the bidding workflow
      * @param {string} bid - game selected by the player
      * @returns {object} state - object for keeping track of the bidding workflow
      */
-    bid(state, bid) {
+    bid(bid) {
         switch (bid) {
             case MEE:
-                state.game_players.push(state.player)
-                state.players_bidding = state.players_bidding.filter(p => p != state.player)
+                this.#bidding.game_players.push(this.#bidding.player)
+                this.#bidding.players_bidding = this.#bidding.players_bidding.filter(p => p != this.#bidding.player)
                 break
             case PAS:
-                if (state.games_open.includes(ALLEEN)) 
-                    state.game = PAS
-                state.players_bidding = state.players_bidding.filter(p => p != state.player)
+                if (this.#bidding.games_open.includes(ALLEEN)) 
+                    this.#bidding.game = PAS
+                this.#bidding.players_bidding = this.#bidding.players_bidding.filter(p => p != this.#bidding.player)
                 break
             case ALLEEN:
-                state.game = bid
-                state.players_bidding = []
+                this.#bidding.game = bid
+                this.#bidding.players_bidding = []
                 break
             case VRAAG:
             case ABONDANCE_H:
@@ -216,25 +221,25 @@ class Wiezen {
             case SOLO_D:
             case SOLO_C:
             case SOLO_SLIM:
-                if (state.game_players.length > 0)
+                if (this.#bidding.game_players.length > 0)
                     // players that have bid a lower game can bid again
-                    state.players_bidding.push(...state.game_players)
-                state.game = bid
-                state.game_players = [state.player]
-                state.players_bidding = state.players_bidding.filter(p => p != state.player)
-                while (state.games_open[0] != bid) state.games_open.shift()
-                    state.games_open.shift()  // remove this game and lower games
+                    this.#bidding.players_bidding.push(...this.#bidding.game_players)
+                this.#bidding.game = bid
+                this.#bidding.game_players = [this.#bidding.player]
+                this.#bidding.players_bidding = this.#bidding.players_bidding.filter(p => p != this.#bidding.player)
+                while (this.#bidding.games_open[0] != bid) this.#bidding.games_open.shift()
+                    this.#bidding.games_open.shift()  // remove this game and lower games
         }
-        if (++state.count_bids === 4) {
+        if (++this.#bidding.count_bids === 4) {
             // after a first round, TROEL should be removed
-            state.games_open = state.games_open.filter(game => game != TROEL)
+            this.#bidding.games_open = this.#bidding.games_open.filter(game => game != TROEL)
             // if game is still VRAAG and there's one game player, he can choose to bid ALLEEN
-            if (state.game === VRAAG && state.game_players.length === 1) {
-                state.games_open = [ALLEEN, PAS]
-                state.players_bidding.push(state.game_players[0])
+            if (this.#bidding.game === VRAAG && this.#bidding.game_players.length === 1) {
+                this.#bidding.games_open = [ALLEEN, PAS]
+                this.#bidding.players_bidding.push(this.#bidding.game_players[0])
             }
         }
-        return state
+        return this.#bidding
     }
 
     /**
@@ -243,7 +248,8 @@ class Wiezen {
      * to play -> (4) `play()` -> (5) `collect_trick()` until game_done. Step 5 is only done after
      * every 4th card. When game_done, (6) `score` is calculated. If the game is not playable, 
      * steps (2) -> (6) are skipped. Finally, (7) `new_game` sets up for a new bidding workflow.  
-     * @param {object} bidding_state - object for keeping track of the BIDDING workflow, this is the result of the bidding workflow (after this, the bidding_state can be discarded). Only following attributes are relevant now:
+     * Data is read from the bidding state object that is the result of the bidding workflow 
+     * (after this, the bidding_state can be discarded). Only following attributes are relevant now:
      * - {string} game - the highest bid 
      * - {array} game_players - containing the names of the players taking part of the highest bid
      * - {number} count_bids - how many bids have been made (this includes PAS)
@@ -262,33 +268,33 @@ class Wiezen {
      * - {number} count_tricks - how many tricks have been played 
      * - {boolean} game_done: set true after the last trick has been played
      */
-     initialize_play(bidding_state) {
+     initialize_play() {
         // change trump if needed and set first player
         let next_player = this.player_after(this.#dealer)  // player after dealer is to play first by default
-        switch (bidding_state.game) {
+        switch (this.#bidding.game) {
             case ABONDANCE_H:
             case SOLO_H:
                 this.#set_trump(HEARTS)
-                next_player = bidding_state.game_players[0]
+                next_player = this.#bidding.game_players[0]
                 break
             case ABONDANCE_S:
             case SOLO_S:
                 this.#set_trump(SPADES)
-                next_player = bidding_state.game_players[0]
+                next_player = this.#bidding.game_players[0]
                 break
             case ABONDANCE_D:
             case SOLO_D:
                 this.#set_trump(DIAMONDS)
-                next_player = bidding_state.game_players[0]
+                next_player = this.#bidding.game_players[0]
                 break
             case ABONDANCE_C:
             case SOLO_C:
                 this.#set_trump(CLUBS)
-                next_player = bidding_state.game_players[0]
+                next_player = this.#bidding.game_players[0]
                 break
             case TROEL:
                 let aces = this.#deck.filter(card => card.value === 'A')
-                let troel_player = bidding_state.game_players[0]
+                let troel_player = this.#bidding.game_players[0]
                 if (aces.every(ace => ace.hand === troel_player)) {
                     // players has 4 aces, so H is trump and highest of H plays first
                     this.#set_trump(HEARTS)
@@ -298,7 +304,7 @@ class Wiezen {
                         highest_of_hearts = this.#deck.filter(card => card.color === HEARTS && card.hand != troel_player)
                         if (highest_of_hearts) {
                             next_player = highest_of_hearts.hand
-                            bidding_state.game_players.push(highest_of_hearts.hand)
+                            this.#bidding.game_players.push(highest_of_hearts.hand)
                             break
                         }                        
                     }
@@ -307,7 +313,7 @@ class Wiezen {
                     let ace4 = aces.filter(ace => ace.hand != troel_player)[0]
                     this.#set_trump(ace4.color)
                     next_player = ace4.hand
-                    bidding_state.game_players.push(ace4.hand)
+                    this.#bidding.game_players.push(ace4.hand)
                 }
                 break
             case MISERIE:
@@ -316,18 +322,18 @@ class Wiezen {
                 break
         }
         // only rondje pas if no one made a bid!
-        if (bidding_state.game === PAS && bidding_state.count_bids === 4)
-            bidding_state.game = RONDEPAS
+        if (this.#bidding.game === PAS && this.#bidding.count_bids === 4)
+            this.#bidding.game = RONDEPAS
         // collect hands for output
         let hands = {}
         this.#players.forEach(player => hands[player] = this.#deck.filter(card => card.hand === player))
         // initialize tricks per player
         let tricks_per_player = {}
         this.#players.forEach(player => tricks_per_player[player] = 0)
-        return {
-            game: bidding_state.game,
-            game_playable: [PAS, RONDEPAS].includes(bidding_state.game) ? false : true,
-            game_players: bidding_state.game_players,
+        this.#playing = {
+            game: this.#bidding.game,
+            game_playable: [PAS, RONDEPAS].includes(this.#bidding.game) ? false : true,
+            game_players: this.#bidding.game_players,
             trump: this.#trump,
             player: null,
             next_player: next_player,
@@ -339,36 +345,36 @@ class Wiezen {
             count_tricks: 0,  // is assigned to cards won in trick # [1..13]; incremented when collecting trick,
             game_done: false
         }
+        return this.#playing
     }
 
     /**
      * Prepare data for playing the next card:
      * - who is the player (player)?
      * - which cards can be played (playable_cards)?
-     * @param {object} state - object for keeping track of the playing workflow
      * @returns {object} state - object for keeping track of the playing workflow
      */
-    play_request(state) {
+    play_request() {
         // next player is to play now
-        state.player = state.next_player
-        state.next_player = null
+        this.#playing.player = this.#playing.next_player
+        this.#playing.next_player = null
         // look at table cards to set playable 
-        state.playable_cards = []
-        if (state.cards_on_table.length > 0) {
+        this.#playing.playable_cards = []
+        if (this.#playing.cards_on_table.length > 0) {
             // only cards with same color as opening card are playable
             // if there are none, any card is playable
-            let opening_card = state.cards_on_table.filter(card => card.table === 1).pop()
-            state.playable_cards.push(...state.hands[state.player].filter(card => card.color === opening_card.color))
-            if (state.playable_cards.length === 0) {
+            let opening_card = this.#playing.cards_on_table.filter(card => card.table === 1).pop()
+            this.#playing.playable_cards.push(...this.#playing.hands[this.#playing.player].filter(card => card.color === opening_card.color))
+            if (this.#playing.playable_cards.length === 0) {
                 // no cards with same color, so all cards are playable
-                state.playable_cards.push(...state.hands[state.player])
+                this.#playing.playable_cards.push(...this.#playing.hands[this.#playing.player])
             }
         } 
         else {
             // all cards are playable
-            state.playable_cards.push(...state.hands[state.player])
+            this.#playing.playable_cards.push(...this.#playing.hands[this.#playing.player])
         }
-        return state
+        return this.#playing
     }
 
     /**
@@ -378,24 +384,23 @@ class Wiezen {
      * - which card on the table is currently winning (winning_card)?
      * - who is the next player (next_player)?
      * - This method modifies the position of cards, moving them from HAND to TABLE
-     * @param {object} state - object for keeping track of the playing workflow
      * @param {string} card - card that was played
      * @returns {object} state - object for keeping track of the playing workflow
      */
-     play(state, card) {
+     play(card) {
         // MOVE CARD FROM HAND TO TABLE
         card.state = TABLE
-        card.table = state.cards_on_table.length + 1
-        card.player = state.player
-        state.playable_cards = null
-        state.cards_on_table.push(card)
+        card.table = this.#playing.cards_on_table.length + 1
+        card.player = this.#playing.player
+        this.#playing.playable_cards = null
+        this.#playing.cards_on_table.push(card)
         let hands = {}
         this.#players.forEach(player => hands[player] = this.#deck.filter(card => card.state === HAND && card.hand === player))
-        state.hands = hands
-        let winning_card = this.#evaluate_trick(state.cards_on_table)
-        state.winning_card = winning_card
-        state.next_player = this.player_after(state.player)
-        return state
+        this.#playing.hands = hands
+        let winning_card = this.#evaluate_trick(this.#playing.cards_on_table)
+        this.#playing.winning_card = winning_card
+        this.#playing.next_player = this.player_after(this.#playing.player)
+        return this.#playing
     }
 
     /**
@@ -405,28 +410,26 @@ class Wiezen {
      * - how many tricks have been played (count_tricks)?
      * - was this the last trick of the game (game_done)?
      * - This method modifies the position of cards, moving them from TABLE to TRICK
-     * @param {object} state - object for keeping track of the playing workflow
      * @returns {object} state - object for keeping track of the playing workflow
      */
-    collect_trick(state) {
-        state.cards_on_table.forEach(card => {
+    collect_trick() {
+        this.#playing.cards_on_table.forEach(card => {
             // MOVE CARD FROM TABLE TO TRICKS
             card.state = TRICK
-            card.trick = state.count_tricks + 1
-            card.winner = state.winning_card.player
+            card.trick = this.#playing.count_tricks + 1
+            card.winner = this.#playing.winning_card.player
         })
-        state.next_player = state.winning_card.player
-        state.tricks_per_player[state.winning_card.player]++
-        state.cards_on_table = []
-        state.winning_card = null
-        state.count_tricks++
-        state.game_done = state.count_tricks >= NUMBER_OF_TRICKS
-        return state
+        this.#playing.next_player = this.#playing.winning_card.player
+        this.#playing.tricks_per_player[this.#playing.winning_card.player]++
+        this.#playing.cards_on_table = []
+        this.#playing.winning_card = null
+        this.#playing.count_tricks++
+        this.#playing.game_done = this.#playing.count_tricks >= NUMBER_OF_TRICKS
+        return this.#playing
     }
 
     /**
      * Calculate the score for the finished game 
-     * @param {object} state - object for keeping track of the playing workflow
      * @returns {object} scores
      * - {object} tricks_per_player - key: player name, value: number counting the tricks won by that player
      * - {object} score - key: player name, value: score of the last game
@@ -434,18 +437,18 @@ class Wiezen {
      * - {object} new_cumulative_score - key: player name, value: total score AFTER playing this game
      * - {number} score_factor - multiplier that has been applied to the score of this game
      */
-    score(state) {
+    score() {
         /* https://www.rijkvanafdronk.be//puntentelling/puntentelling/ */
         let old_cumulative_score = {...this.#score}
-        let players = state.game_players
-        let opponents = this.#players.filter(player => !state.game_players.includes(player))
+        let players = this.#playing.game_players
+        let opponents = this.#players.filter(player => !this.#playing.game_players.includes(player))
         let game_player_tricks = 0
         players.forEach(player => {
-            game_player_tricks += state.tricks_per_player[player]
+            game_player_tricks += this.#playing.tricks_per_player[player]
         })
         let score = {}
         this.#players.forEach(player => score[player] = 0)
-        switch (state.game) {
+        switch (this.#playing.game) {
             case VRAAG:
                 if (game_player_tricks === 13) {  // onder tafel
                     players.forEach(player => score[player] += 14)
@@ -510,7 +513,7 @@ class Wiezen {
             case MISERIE:
                 game_players.forEach(player => {
                     let single_player_opponents = this.#players.filter(player => player != player)
-                    if (state.tricks_per_player[player] === 0) {  // gewonnen
+                    if (this.#playing.tricks_per_player[player] === 0) {  // gewonnen
                         score[player] += 3 * (5)
                         single_player_opponents.forEach(opponent => score[opponent] -= 5)
                     } else {  // verloren
@@ -522,7 +525,7 @@ class Wiezen {
             case MISERIE_TAFEL:
                 game_players.forEach(player => {
                     let single_player_opponents = this.#players.filter(player => player != player)
-                    if (state.tricks_per_player[player] === 0) {  // gewonnen
+                    if (this.#playing.tricks_per_player[player] === 0) {  // gewonnen
                         score[player] += 3 * (15)
                         single_player_opponents.forEach(opponent => score[opponent] -= 15)
                     } else {  // verloren
@@ -565,7 +568,7 @@ class Wiezen {
             this.#score[player] += score[player]
         })
         return {
-            tricks_per_player: state.tricks_per_player,
+            tricks_per_player: this.#playing.tricks_per_player,
             score: score, 
             old_cumulative_score: old_cumulative_score, 
             new_cumulative_score: this.#score,
@@ -576,9 +579,8 @@ class Wiezen {
     /**
      * Collect the cards back into the stack for a next game. Assign the next dealer. In case of RONDEPAS, increment the score factors of future games.
      * - This method modifies the position of cards, moving them from TRICK to STACK
-     * @param {object} state - object for keeping track of the playing workflow
      */
-    new_game(state) {
+    new_game() {
         // MOVE CARDS FROM TRICKS TO STACK
         this.#deck.forEach(card => {
             card.state = STACK
@@ -591,7 +593,7 @@ class Wiezen {
             card.winner = null
         })
         this.#trump = null
-        switch (state.game) {
+        switch (this.#playing.game) {
             case PAS:
                 this.#dealer = this.player_after(this.#dealer)
                 this.#rondepas_count = 0

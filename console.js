@@ -30,7 +30,7 @@ while (true) {
 
     do {
 
-        bidding_state = wiezen.bid_request(bidding_state)
+        bidding_state = wiezen.bid_request()
 
         console.log(`Game bid: ${bidding_state.game}`)
         console.log(`By: ${bidding_state.game_players.toString()}`)
@@ -45,11 +45,11 @@ while (true) {
         } while (isNaN(idx) || idx < 0 || idx >= bidding_state.games_open_mee.length)
         let bid = bidding_state.games_open_mee[idx]
             
-        bidding_state = wiezen.bid(bidding_state, bid)
+        bidding_state = wiezen.bid(bid)
 
     } while (bidding_state.players_bidding.length > 0)
 
-    let play_state = wiezen.initialize_play(bidding_state)
+    let play_state = wiezen.initialize_play()
 
     if (play_state.game_playable) {
 
@@ -59,7 +59,7 @@ while (true) {
 
         do {
 
-            play_state = wiezen.play_request(play_state)
+            play_state = wiezen.play_request()
 
             console.log(`Table: ${cards_to_string(play_state.cards_on_table)}`)
             console.log(`Hand of ${play_state.player}: ${cards_to_string(play_state.hands[play_state.player])}`)
@@ -70,13 +70,13 @@ while (true) {
             } while (isNaN(idx) || idx < 0 || idx >= play_state.playable_cards.length)
             let card = play_state.playable_cards[idx]
 
-            play_state = wiezen.play(play_state, card)
+            play_state = wiezen.play(card)
 
             if (play_state.cards_on_table.length === 4) {
 
                 console.log(`Trick won by ${play_state.winning_card.player} (${cards_to_string([play_state.winning_card])}): ${cards_to_string(play_state.cards_on_table)}`)
 
-                play_state = wiezen.collect_trick(play_state)
+                play_state = wiezen.collect_trick()
 
                 players.forEach(player => {
                     console.log(`Tricks won by ${player}: ${play_state.tricks_per_player[player]}`)
@@ -86,7 +86,7 @@ while (true) {
 
         } while (!play_state.game_done)
 
-        let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.score(play_state)
+        let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.score()
 
         players.forEach(player => {
             console.log(`Tricks won by ${player}: ${tricks_per_player[player]}`)
@@ -110,7 +110,7 @@ while (true) {
         
     }
 
-    wiezen.new_game(play_state)
+    wiezen.new_game()
     
 }
 
