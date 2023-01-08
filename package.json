@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "debug": "nodemon --inspect index.js"
+    "debug": "nodemon --inspect index.js",
+    "build-docs": "jsdoc wiezen.js"
   },
   "repository": {
     "type": "git",
@@ -19,6 +20,7 @@
   "homepage": "https://github.com/vicmortelmans/wiezen#readme",
   "dependencies": {
     "express": "^4.18.2",
+    "jsdoc": "^4.0.0",
     "nodemon": "^2.0.20",
     "prompt-sync": "^4.2.0",
     "pug": "^3.0.2",

@@ -31,6 +31,9 @@ const COLORS = [HEARTS, SPADES, DIAMONDS, CLUBS]
 const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
 const NUMBER_OF_TRICKS = VALUES.length
 
+/**
+ * Class representing four players playing a series of whist games.
+ */
 class Wiezen {
     #deck  // object
     #players  // array of strings ** DO NOT CHANGE ** 
@@ -41,6 +44,10 @@ class Wiezen {
     #rondepas_count  // counting subsequent rondepas
     #scorefactors  // array of multipliers for each game
     
+    /**
+     * Constructor of a Wiezen object.
+     * @param {Array} players - containing player names as strings
+     */
     constructor(players) {
         this.#players = [...players]
         this.#dealer = this.#players[0]
@@ -70,10 +77,9 @@ class Wiezen {
         players.forEach(player => this.#score[player] = 0)
     }
 
-    dealer() {
-        return this.#dealer
-    }
-
+    /**
+     * Cut the stack in half at random position and put the bottom half on top of the other.
+     */
     cut() {
         function getRandomIntInclusive(min, max) {
             min = Math.ceil(min);
@@ -88,6 +94,11 @@ class Wiezen {
         console.log(`Deck cut at position ${p}`)
     }
 
+    /**
+     * Distribute the cards in the stack over the players.
+     * - This method modifies the position of cards, moving them from STACK to HAND
+     * @returns {Object} hands - key: player name, value: array of card objects held by that player
+     */
     deal() {
         function deal_cards_to_player(cards_list, player) {
             cards_list.forEach(card => {
@@ -115,6 +126,19 @@ class Wiezen {
         return hands
     }
 
+    /**
+     * Initialize data for the bidding workflow. A bidding workflow consists of (1) `initialize_bid()`,
+     * then loop over (2) `bid_request()` -> (3) ask user for bid -> (4) `bid()` until players_bidding is 0.
+     * @returns {object} state - object for keeping track of the bidding workflow
+     * - {string} game - the highest bid up till now
+     * - {array} game_players - containing the names of the players taking part of the highest bid
+     * - {array} games_open - containing the games that can be bid
+     * - {array} games_open_mee - containing the games that can be bid, and also 'meegaan' if applicable
+     * - {array} players_bidding - containing the players that still can place new bids
+     * - {string} player - the player currently up for a new bid
+     * - {number} count_bids - how many bids have been made (this includes PAS)
+     * - {number} score_factor - multiplier that will be applied to the score of this game
+     */
     initialize_bid() {
         let games = [...GAMES].filter(game => !game.includes(this.#trump))
         return {
@@ -129,6 +153,13 @@ class Wiezen {
         }
     }
 
+    /**
+     * Prepare data for the next bid: 
+     * - which player is up for a new bid (player)? 
+     * - which games can be bid (games_open_mee)?
+     * @param {object} state - object for keeping track of the bidding workflow
+     * @returns {object} state - object for keeping track of the bidding workflow
+     */
     bid_request(state) {
         state.games_open_mee = [...state.games_open]
         if (state.games_open.includes(ALLEEN)) {
@@ -146,6 +177,16 @@ class Wiezen {
         return state
     }
 
+    /**
+     * Process the bid made by the player: 
+     * - which game is now highest (game)? 
+     * - which players are participating (game_players)? 
+     * - which players can still place a new bid (players_bidding)?
+     * - which games can be bid (games_open)?
+     * @param {object} state - object for keeping track of the bidding workflow
+     * @param {string} bid - game selected by the player
+     * @returns {object} state - object for keeping track of the bidding workflow
+     */
     bid(state, bid) {
         switch (bid) {
             case MEE:
@@ -196,7 +237,32 @@ class Wiezen {
         return state
     }
 
-    initialize_play(bidding_state) {
+    /**
+     * Initialize data for the playing workflow. A playing workflow covers 13 tricks and consists
+     * of (1) `initialize_play()` and then loop for playing all cards: (2) `play_request()` -> (3) ask user for a card
+     * to play -> (4) `play()` -> (5) `collect_trick()` until game_done. Step 5 is only done after
+     * every 4th card. When game_done, (6) `score` is calculated. If the game is not playable, 
+     * steps (2) -> (6) are skipped. Finally, (7) `new_game` sets up for a new bidding workflow.  
+     * @param {object} bidding_state - object for keeping track of the BIDDING workflow, this is the result of the bidding workflow (after this, the bidding_state can be discarded). Only following attributes are relevant now:
+     * - {string} game - the highest bid 
+     * - {array} game_players - containing the names of the players taking part of the highest bid
+     * - {number} count_bids - how many bids have been made (this includes PAS)
+     * @returns {object} state - object for keeping track of the PLAYING workflow
+     * - {string} game - the name of the game
+     * - {boolean} game_playable - false when bidding ended in PAS
+     * - {array} game_players - containing the names of the players taking part of the game
+     * - {string} trump - color that is trump
+     * - {string} player - the player currently playing a card
+     * - {string} next_player - the player who has to play the next card 
+     * - {array} playable_cards - containing the cards that can be played
+     * - {array} cards_on_table - containing the cards that are on the table
+     * - {object} winning_card - the card on the table that is currently winning
+     * - {array} hands - key: player name, value: array of card objects held by that player
+     * - {array} tricks_per_player - key: player name, value: number counting the tricks won by that player
+     * - {number} count_tricks - how many tricks have been played 
+     * - {boolean} game_done: set true after the last trick has been played
+     */
+     initialize_play(bidding_state) {
         // change trump if needed and set first player
         let next_player = this.player_after(this.#dealer)  // player after dealer is to play first by default
         switch (bidding_state.game) {
@@ -275,6 +341,13 @@ class Wiezen {
         }
     }
 
+    /**
+     * Prepare data for playing the next card:
+     * - who is the player (player)?
+     * - which cards can be played (playable_cards)?
+     * @param {object} state - object for keeping track of the playing workflow
+     * @returns {object} state - object for keeping track of the playing workflow
+     */
     play_request(state) {
         // next player is to play now
         state.player = state.next_player
@@ -298,7 +371,18 @@ class Wiezen {
         return state
     }
 
-    play(state, card) {
+    /**
+     * Process the card that has been played:
+     * - which cards are on the table (cards_on_table)?
+     * - which cards are in the player's hands (hands)?
+     * - which card on the table is currently winning (winning_card)?
+     * - who is the next player (next_player)?
+     * - This method modifies the position of cards, moving them from HAND to TABLE
+     * @param {object} state - object for keeping track of the playing workflow
+     * @param {string} card - card that was played
+     * @returns {object} state - object for keeping track of the playing workflow
+     */
+     play(state, card) {
         // MOVE CARD FROM HAND TO TABLE
         card.state = TABLE
         card.table = state.cards_on_table.length + 1
@@ -314,6 +398,16 @@ class Wiezen {
         return state
     }
 
+    /**
+     * Process the trick when it is complete:
+     * - who is the next player = the winner of the trick (next_player)?
+     * - how many tricks has each player won so far (tricks_per_player)?
+     * - how many tricks have been played (count_tricks)?
+     * - was this the last trick of the game (game_done)?
+     * - This method modifies the position of cards, moving them from TABLE to TRICK
+     * @param {object} state - object for keeping track of the playing workflow
+     * @returns {object} state - object for keeping track of the playing workflow
+     */
     collect_trick(state) {
         state.cards_on_table.forEach(card => {
             // MOVE CARD FROM TABLE TO TRICKS
@@ -330,6 +424,16 @@ class Wiezen {
         return state
     }
 
+    /**
+     * Calculate the score for the finished game 
+     * @param {object} state - object for keeping track of the playing workflow
+     * @returns {object} scores
+     * - {object} tricks_per_player - key: player name, value: number counting the tricks won by that player
+     * - {object} score - key: player name, value: score of the last game
+     * - {object} old_cumulative_score - key: player name, value: total score BEFORE playing this game
+     * - {object} new_cumulative_score - key: player name, value: total score AFTER playing this game
+     * - {number} score_factor - multiplier that has been applied to the score of this game
+     */
     score(state) {
         /* https://www.rijkvanafdronk.be//puntentelling/puntentelling/ */
         let old_cumulative_score = {...this.#score}
@@ -469,6 +573,11 @@ class Wiezen {
         }
     }
 
+    /**
+     * Collect the cards back into the stack for a next game. Assign the next dealer. In case of RONDEPAS, increment the score factors of future games.
+     * - This method modifies the position of cards, moving them from TRICK to STACK
+     * @param {object} state - object for keeping track of the playing workflow
+     */
     new_game(state) {
         // MOVE CARDS FROM TRICKS TO STACK
         this.#deck.forEach(card => {
