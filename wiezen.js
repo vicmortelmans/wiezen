@@ -35,16 +35,17 @@ const NUMBER_OF_TRICKS = VALUES.length
  * Class representing four players playing a series of whist games.
  */
 class Wiezen {
-    #deck  // object
+    #deck  // array of cards (see constructor for attributes)
     #players  // array of strings ** DO NOT CHANGE ** 
     #dealer  // string ** THIS IS UPDATED AFTER EACH GAME **
-    #trump
-    #score  // scores by player
+    #trump  // string (from COLORS)
+    #score  // object scores per player
     #game_number  // numbering games 0,1,2,...; a game number stands until a game is actually played!
     #rondepas_count  // counting subsequent rondepas
     #scorefactors  // array of multipliers for each game
     #bidding  // object managing state during bidding workflow
     #playing  // object managing state during playing workflow
+    #depleted_colors  // object per player listing depleted colors (only filled in after a play_request where the player didn't follow suit)
     
     /**
      * Constructor of a Wiezen object.
@@ -68,14 +69,14 @@ class Wiezen {
                     color: c,
                     value: v,
                     order: 13 * ci + vi,  // only for comparing
-                    state: STACK,
+                    state: STACK,  // STACK -> HAND -> TABLE -> TRICK
                     trump: null,  // boolean
-                    stack: 13 * ci + vi + 1,  // range 1..52
-                    hand: null,  // name of the player
-                    table: null,  // range 1..4
-                    player: null, // name of the player
-                    trick: null, // range 1..13
-                    winner: null  // name of the player
+                    stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
+                    hand: null,  // name of the player who owned the card
+                    table: null,  // range 1..4 order of cards on the table
+                    player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
+                    trick: null, // range 1..13 order of the tricks
+                    winner: null  // name of the player in who won the trick containing this card
                 })
             })
         })
@@ -660,7 +661,9 @@ class Wiezen {
     player_before(player) {
         let players = this.rotate_players(player)
         return players[3]
-    }    
+    }
+
+
     
 }
 
