@@ -14,11 +14,21 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch console.js",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/console.js",
+            "console": "integratedTerminal" 
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch ai_players",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/ai_players.js",
             "console": "integratedTerminal" 
         }
     ]

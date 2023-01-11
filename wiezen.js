@@ -45,7 +45,6 @@ class Wiezen {
     #scorefactors  // array of multipliers for each game
     #bidding  // object managing state during bidding workflow
     #playing  // object managing state during playing workflow
-    #depleted_colors  // object per player listing depleted colors (only filled in after a play_request where the player didn't follow suit)
     
     /**
      * Constructor of a Wiezen object.
@@ -331,6 +330,9 @@ class Wiezen {
         // initialize tricks per player
         let tricks_per_player = {}
         this.#players.forEach(player => tricks_per_player[player] = 0)
+        // initialize depleted colors
+        let depleted_colors = {}
+        this.#players.forEach(player => depleted_colors[player] = [])
         this.#playing = {
             game: this.#bidding.game,
             game_playable: [PAS, RONDEPAS].includes(this.#bidding.game) ? false : true,
@@ -344,7 +346,10 @@ class Wiezen {
             hands: hands,
             tricks_per_player: tricks_per_player,
             count_tricks: 0,  // is assigned to cards won in trick # [1..13]; incremented when collecting trick,
-            game_done: false
+            game_done: false,
+            depleted_colors: depleted_colors  // object per player listing publicly known depleted colors 
+                                 // (only filled in after a play_request where the player can't follow suit)
+
         }
         return this.#playing
     }
@@ -379,6 +384,28 @@ class Wiezen {
     }
 
     /**
+     * AI auxiliary method
+     * Prepare data for playing the next card, but not knowing how the other hands are dealt:
+     * - who is the player (player)?
+     * - which cards can be played (playable_cards)?
+     * @returns {object} state - object for keeping track of the playing workflow
+     */
+    play_request_from_viewpoint_of_player(watchingPlayer) {
+        // this function is only for when player's opponents have to play!
+        if (watchingPlayer === this.#playing.next_player)
+            return this.play_request()
+        // next player is to play now
+        this.#playing.player = this.#playing.next_player
+        this.#playing.next_player = null
+        // all remaining cards are playable, apart from the colors that the player didn't follow earlier
+        this.#playing.playable_cards = []
+        this.#players.filter(player => player != watchingPlayer).forEach(player => {
+            this.#playing.playable_cards.push(...this.#playing.hands[player].filter(card => !this.#playing.depleted_colors[player].includes(card.color)))
+        })
+        return this.#playing
+    }
+
+    /**
      * Process the card that has been played:
      * - which cards are on the table (cards_on_table)?
      * - which cards are in the player's hands (hands)?
@@ -389,6 +416,12 @@ class Wiezen {
      * @returns {object} state - object for keeping track of the playing workflow
      */
      play(card) {
+        // Player didn't follow suit? let's remember that!
+        if (this.#playing.cards_on_table.length > 0) {
+            let opening_card = this.#playing.cards_on_table.filter(card => card.table === 1).pop()
+            if (card.color != opening_card.color)
+                this.#playing.depleted_colors[this.#playing.player].push(opening_card.color)
+        }
         // MOVE CARD FROM HAND TO TABLE
         card.state = TABLE
         card.table = this.#playing.cards_on_table.length + 1
