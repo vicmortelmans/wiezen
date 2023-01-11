@@ -2,20 +2,18 @@ doctype html
 html
     head
         title Wiezen 
-        link(rel ="stylesheet" type="text/css" href="/css/style.css")
+        link(rel ="stylesheet" type="text/css" href="css/style.css")
         meta(name="viewport" content="width=device-width, initial-scale=1")
     body
-        span Er zijn 
-        span#aantalMensen 1
-        span  mensen ingelogd
-        br
         div#invoerVeld
             label Voer ja naam in 
             input#input()
-            button#Knop submit
+            button#Knop Submit
         div#spelerNaam
             span Jij bent 
             span#player.naam player
             span#spelerNummer.naam  1
+        div#aanmelden
 
-            script(src="script/script.js")
+        script const ws = new WebSocket(`wss://${location.hostname}#{ws_port_suffix}#{ws_port}`)
+        script(src="script/script.js")

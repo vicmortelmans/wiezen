@@ -1,9 +1,10 @@
 document.getElementById("Knop").addEventListener("click", () => {
-    ws.send("Submit")
+    naam = (document.getElementById("input").value)
+    ws.send(naam)
 })
 
 ws.addEventListener('message', function (event){
-    if(event.data=== ariaValueText){
-        document.getElementById("naam").innerHTML
-    }
+    console.log("message reveived" + event.data)
+    message = JSON.parse(event.data)
+    document.getElementById(message.id).innerHTML = message.htmlFragment
 })
