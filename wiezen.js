@@ -31,11 +31,61 @@ const COLORS = [HEARTS, SPADES, DIAMONDS, CLUBS]
 const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
 const NUMBER_OF_TRICKS = VALUES.length
 
+class Deck {
+    deck  // array of cards (see constructor for attributes)
+    
+    constructor() {
+        // create the deck of cards:
+        COLORS.forEach((c, ci) => {
+            VALUES.forEach((v, vi) => {
+                this.deck.push({
+                    color: c,
+                    value: v,
+                    id: c+v,
+                    order: 13 * ci + vi,  // only for comparing
+                    state: STACK,  // STACK -> HAND -> TABLE -> TRICK
+                    trump: null,  // boolean
+                    stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
+                    hand: null,  // name of the player who owned the card
+                    table: null,  // range 1..4 order of cards on the table
+                    player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
+                    trick: null, // range 1..13 order of the tricks
+                    winner: null  // name of the player in who won the trick containing this card
+                })
+            })
+        })
+    }
+
+    /**
+     * Cut the stack in half at random position and put the bottom half on top of the other.
+     */
+    cut() {
+        function getRandomIntInclusive(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
+        }
+        // pick random position in DECK
+        let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
+        // stack positions [1..p] become [52-p+1..52]
+        // stack positions [p+1..52] become [1..52-p]
+        this.deck.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
+    }
+
+    get_hands() {
+        let hands = {}
+        for (card of this.deck)
+            if (card.state === HAND)
+                hands[card.hand].push(card)
+        return hands
+    }
+}
+
 /**
  * Class representing four players playing a series of whist games.
  */
 class Wiezen {
-    deck  // array of cards (see constructor for attributes)
+    deck  // Deck object
     players  // array of strings ** DO NOT CHANGE ** 
     dealer  // string ** THIS IS UPDATED AFTER EACH GAME **
     trump  // string (from COLORS)
@@ -54,31 +104,13 @@ class Wiezen {
         this.players = [...players]
         this.dealer = this.players[0]
         this.trump = null
-        this.deck = []
+        this.deck = new Deck()
         this.score = {}
         this.game_number = 0
         this.rondepas_count = 0
         this.scorefactors = []
         this.bidding = {}
         this.playing = {}
-        // create the deck of cards:
-        COLORS.forEach((c, ci) => {
-            VALUES.forEach((v, vi) => {
-                this.deck.push({
-                    color: c,
-                    value: v,
-                    order: 13 * ci + vi,  // only for comparing
-                    state: STACK,  // STACK -> HAND -> TABLE -> TRICK
-                    trump: null,  // boolean
-                    stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
-                    hand: null,  // name of the player who owned the card
-                    table: null,  // range 1..4 order of cards on the table
-                    player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
-                    trick: null, // range 1..13 order of the tricks
-                    winner: null  // name of the player in who won the trick containing this card
-                })
-            })
-        })
         // initialize score
         players.forEach(player => this.score[player] = 0)
     }
@@ -87,16 +119,7 @@ class Wiezen {
      * Cut the stack in half at random position and put the bottom half on top of the other.
      */
     cut() {
-        function getRandomIntInclusive(min, max) {
-            min = Math.ceil(min);
-            max = Math.floor(max);
-            return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
-        }
-        // pick random position in DECK
-        let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
-        // stack positions [1..p] become [52-p+1..52]
-        // stack positions [p+1..52] become [1..52-p]
-        this.deck.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
+        this.deck.cut()
         console.log(`Deck cut at position ${p}`)
     }
 
@@ -125,11 +148,7 @@ class Wiezen {
                 deal_cards_to_player(cards_in_stack_order.splice(0,amount), player)
             })
         })
-        let hands = {}
-        players.forEach(player => {
-            hands[player] = this.deck.filter(card => card.hand === player)
-        })
-        return hands
+        return this.deck.get_hands()
     }
 
     /**
