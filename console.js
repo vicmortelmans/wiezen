@@ -2,12 +2,6 @@ var Wiezen = require("./wiezen")
 
 const PROMPT = require("prompt-sync")({ sigint: true });
 
-function cards_to_string(cards, {numbered = false} = {}) {
-    return cards.map((card, cardi) => card.color + card.value 
-        + (card.trump?'*':'') 
-        + (numbered?`[${cardi}]`:'')).toString()
-}
-
 function list_to_string_numbered(list) {
     return list.map((item, itemi) => item + `[${itemi}]`).toString()
 }
@@ -23,7 +17,7 @@ while (true) {
     let hands = wiezen.deal()
 
     players.forEach(player => {
-        console.log(`Hand of ${player}: ${cards_to_string(hands[player])}`)
+        console.log(`Hand of ${player}: ${hands[player].toString()}`)
     })
 
     let bidding_state = wiezen.initialize_bid()
@@ -61,20 +55,20 @@ while (true) {
 
             play_state = wiezen.play_request()
 
-            console.log(`Table: ${cards_to_string(play_state.cards_on_table)}`)
-            console.log(`Hand of ${play_state.player}: ${cards_to_string(play_state.hands[play_state.player])}`)
-            console.log(`Play card from: ${cards_to_string(play_state.playable_cards, {numbered: true})}`)
+            console.log(`Table: ${play_state.cards_on_table.toString()}`)
+            console.log(`Hand of ${play_state.player}: ${play_state.hands[play_state.player].toString()}`)
+            console.log(`Play card from: ${list_to_string_numbered(play_state.playable_cards)}`)
             let idx
             do {
                 idx = parseInt(PROMPT("Which card will you play? "));
             } while (isNaN(idx) || idx < 0 || idx >= play_state.playable_cards.length)
-            let card = play_state.playable_cards[idx]
+            let card_id = play_state.playable_cards[idx]
 
-            play_state = wiezen.play(card)
+            play_state = wiezen.play(card_id)
 
             if (play_state.cards_on_table.length === 4) {
 
-                console.log(`Trick won by ${play_state.winning_card.player} (${cards_to_string([play_state.winning_card])}): ${cards_to_string(play_state.cards_on_table)}`)
+                console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${play_state.winning_card}): ${play_state.cards_on_table.toString()}`)
 
                 play_state = wiezen.collect_trick()
 
@@ -86,7 +80,7 @@ while (true) {
 
         } while (!play_state.game_done)
 
-        let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.score()
+        let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.calculate_score()
 
         players.forEach(player => {
             console.log(`Tricks won by ${player}: ${tricks_per_player[player]}`)
