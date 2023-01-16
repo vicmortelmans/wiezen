@@ -1,28 +1,33 @@
 class Deck {
     deck  // array of cards (see constructor for attributes)
-    dict  // object with id's as keys and links to the cards as values
     
-    constructor() {
-        // create the deck of cards:
-        this.deck = []
-        Deck.COLORS.forEach((c, ci) => {
-            Deck.VALUES.forEach((v, vi) => {
-                this.deck.push({
-                    color: c,
-                    value: v,
-                    id: c+v,
-                    order: 13 * ci + vi,  // only for comparing
-                    state: Deck.STACK,  // STACK -> HAND -> TABLE -> TRICK
-                    trump: null,  // boolean
-                    stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
-                    hand: null,  // name of the player who owned the card
-                    table: null,  // range 1..4 order of cards on the table
-                    player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
-                    trick: null, // range 1..13 order of the tricks
-                    winner: null  // name of the player in who won the trick containing this card
+    constructor(deck) {
+        if (deck) {
+            // clone an existing deck (cf. wiezen_ai)
+            this.deck = JSON.parse(JSON.stringify(deck.deck))
+        }
+        else {
+            // create the deck of cards:
+            this.deck = []
+            Deck.COLORS.forEach((c, ci) => {
+                Deck.VALUES.forEach((v, vi) => {
+                    this.deck.push({
+                        color: c,
+                        value: v,
+                        id: c+v,
+                        order: 13 * ci + vi,  // only for comparing
+                        state: Deck.STACK,  // STACK -> HAND -> TABLE -> TRICK
+                        trump: null,  // boolean
+                        stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
+                        hand: null,  // name of the player who owned the card
+                        table: null,  // range 1..4 order of cards on the table
+                        player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
+                        trick: null, // range 1..13 order of the tricks
+                        winner: null  // name of the player in who won the trick containing this card
+                    })
                 })
             })
-        })
+        }
     }
 
     #card_by_id(id) {

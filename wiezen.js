@@ -271,8 +271,7 @@ class Wiezen {
             hands: this.deck.get_hands(),  // for output only
             tricks_per_player: tricks_per_player,
             count_tricks: 0,  // is assigned to cards won in trick  [1..13]; incremented when collecting trick,
-            game_done: false,
-
+            game_done: false
         }
         return this.playing
     }
