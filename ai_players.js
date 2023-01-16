@@ -22,7 +22,6 @@ class Wiezen_ai {
         this.playing = JSON.parse(JSON.stringify(wiezen.playing))  // clone the playing object
         this.playing.depleted_colors = {}
         this.players.forEach(player => this.playing.depleted_colors[player] = [])
-        console.log(JSON.stringify(this.playing.cards_on_table))
     }
 
     play_request() {
@@ -137,19 +136,13 @@ function list_to_string_numbered(list) {
     return list.map((item, itemi) => item + `[${itemi}]`).toString()
 }
 
-var game_tree_root_nodes = {}
-var game_tree_current_nodes = {}
-// Each node has properties:
-// - object playing_state (= player-neutral), 
-// - object wiezen_ai
-// - map by card child nodes
-// - list by player of the evaluation in this node (= count of tricks + winning hand)
 
 function minimax_player(node, depth, alpha, beta, simulated_player) {
     // static evaluation of node = the number of tricks won + 1 if winning current trick
     if (depth === 0 || node.state.game_done) {
         let eval = node.scores[simulated_player]
-        console.log(`Calculated score ${eval}@${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} at max depth`)
+        let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length
+        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} score is ${eval} tricks for ${simulated_player}`)
         return [null, node.scores]
     }
     // create the child nodes
@@ -166,6 +159,8 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             if (play_state.winning_card)
                 scores[wiezen_clone.get_hand(play_state.winning_card)]++
             node.children.set(card_id, {
+                card_id: card_id,  // only for logging
+                player: node.state.player,  // only for logging
                 state: play_state,
                 wiezen: wiezen_clone,
                 children: new Map(),
@@ -178,7 +173,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
         let max_eval = -999
         let max_card_id, max_scores
         for (const [card_id, child] of node.children) {
-            console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
+            //console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
             let [next_card_id, scores] = minimax_player(child, depth-1, alpha, beta, simulated_player)
             let eval = scores[simulated_player]
             if (eval > max_eval) {
@@ -190,14 +185,15 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             if (beta <= alpha)
                 break
         }
-        console.log(`Calculated score ${max_eval}@${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${max_card_id}`)
+        let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length
+        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${max_card_id} maximizing ${max_scores[simulated_player]} tricks for ${simulated_player}`)
         return [max_card_id, max_scores]
     }
     else {
         let min_eval = 999
         let min_card_id, min_scores
         for (const [card_id, child] of node.children) {
-            console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
+            //console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
             let [next_card_id, scores] = minimax_player(child, depth-1, alpha, beta, simulated_player)
             let eval = scores[simulated_player]
             if (eval < min_eval) {
@@ -209,7 +205,8 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             if (beta <= alpha)
                 break
         }
-        console.log(`Calculated score ${min_eval}@${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${min_card_id}`)
+        let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length
+        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${min_card_id} minimizing ${min_scores[simulated_player]} tricks for ${simulated_player}`)
         return [min_card_id, min_scores]
     }
 }
@@ -259,34 +256,41 @@ while (true) {
         console.log(`Player(s): ${play_state.game_players}`)
         console.log(`Trump: ${play_state.trump}`)
 
+        gametree = null
+
         do {
 
             play_state = wiezen.play_request()
 
-            
-            console.log(`Table: ${play_state.cards_on_table.toString()}`)
-            console.log(`Hand of ${play_state.player}: ${play_state.hands[play_state.player].toString()}`)
-            console.log(`Play card from: ${list_to_string_numbered(play_state.playable_cards)}`)
-            
-            // if this is the player's first card, initialize game_tree_node for this player
-            if (!( play_state.player in game_tree_root_nodes)) {
-                game_tree_root_nodes[play_state.player] = {
-                    state: play_state,
+            // Initialize gametree
+            // Each node has properties:
+            // - object playing_state (= player-neutral), 
+            // - object wiezen_ai
+            // - map by card child nodes
+            // - list by player of the evaluation in this node (= count of tricks + winning hand)
+            if (!gametree) 
+                game_tree = {
+                    card: null,  // the card that got me in this node
+                    state: play_state,  // current play_state snapshot, after play_request call
                     wiezen: new Wiezen_ai(wiezen),
                     children: new Map(),
                     scores: []
                 }
-                game_tree_current_nodes[play_state.player] = game_tree_root_nodes[play_state.player]
-            }
 
             // let the minimax algorithm choose a card
             // during this process, the game tree is filled in to a certain depth
-            let [card_id, scores] = minimax_player(game_tree_current_nodes[play_state.player], 2, -999, 999, play_state.player)
+            let [card_id, scores] = minimax_player(game_tree, 2, -999, 999, play_state.player)
+
+            console.log(`Table: ${play_state.cards_on_table.toString()}`)
+            console.log(`Hand of ${play_state.player}: ${play_state.hands[play_state.player].toString()}`)
+            console.log(`Play card from: ${list_to_string_numbered(play_state.playable_cards)}`)
+
+            prompt(`${play_state.player} plays ${card_id}. Continue...`)
 
             play_state = wiezen.play(card_id)
 
             // change tree pointer to the child node
-            game_tree_current_nodes[play_state.player] = game_tree_current_nodes[play_state.player].children.get(card_id)
+            game_tree = game_tree.children.get(card_id)
 
             if (play_state.cards_on_table.length === 4) {
 
