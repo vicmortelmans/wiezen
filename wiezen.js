@@ -1,233 +1,4 @@
-const PAS = 'pas'
-const RONDEPAS = 'ronde pas'
-const VRAAG = 'vraag'
-const ABONDANCE_H = 'abondance in ♥'
-const ABONDANCE_S = 'abondance in ♠'
-const ABONDANCE_D = 'abondance in ♦'
-const ABONDANCE_C = 'abondance in ♣'
-const ABONDANCE_TROEF = 'abondance in troef'
-const MISERIE = 'miserie'
-const TROEL = 'troel'
-const MISERIE_TAFEL = 'miserie op tafel'
-const SOLO_H = 'solo in ♥'
-const SOLO_S = 'solo in ♠'
-const SOLO_D = 'solo in ♦'
-const SOLO_C = 'solo in ♣'
-const SOLO_SLIM = 'solo slim'
-const MEE = 'meegaan'
-const ALLEEN = 'alleen'
-const GAMES = [VRAAG, ABONDANCE_H, ABONDANCE_S, ABONDANCE_D, ABONDANCE_C, 
-    ABONDANCE_TROEF, MISERIE, TROEL, MISERIE_TAFEL, SOLO_H, SOLO_S, SOLO_D, SOLO_C, 
-    SOLO_SLIM, PAS]
-const STACK = 'stack'
-const HAND = 'hand'
-const TABLE = 'table'
-const TRICK = 'trick'
-const HEARTS = '♥'
-const SPADES = '♠'
-const DIAMONDS = '♦'
-const CLUBS = '♣'
-const COLORS = [HEARTS, SPADES, DIAMONDS, CLUBS]
-const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
-const NUMBER_OF_TRICKS = VALUES.length
-
-class Deck {
-    deck  // array of cards (see constructor for attributes)
-    dict  // object with id's as keys and links to the cards as values
-    
-    constructor() {
-        // create the deck of cards:
-        this.deck = []
-        COLORS.forEach((c, ci) => {
-            VALUES.forEach((v, vi) => {
-                this.deck.push({
-                    color: c,
-                    value: v,
-                    id: c+v,
-                    order: 13 * ci + vi,  // only for comparing
-                    state: STACK,  // STACK -> HAND -> TABLE -> TRICK
-                    trump: null,  // boolean
-                    stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
-                    hand: null,  // name of the player who owned the card
-                    table: null,  // range 1..4 order of cards on the table
-                    player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
-                    trick: null, // range 1..13 order of the tricks
-                    winner: null  // name of the player in who won the trick containing this card
-                })
-            })
-        })
-    }
-
-    #card_by_id(id) {
-        id = id.replace('*','')  // remove trump mark
-        return this.deck.filter(card => card.id === id).pop()
-    }
-
-    #cards_by_ids(ids) {
-        ids = ids.map(id => id.replace('*',''))  // remove trump mark
-        return this.deck.filter(card => ids.includes(card.id))
-    }
-
-    #id_trump(card) {
-        return card.id + (card.trump ? '*' : '')
-    }
-
-    /* data setters */
-
-    /**
-     * Cut the stack in half at random position and put the bottom half on top of the other.
-     */
-    cut() {
-        function getRandomIntInclusive(min, max) {
-            min = Math.ceil(min);
-            max = Math.floor(max);
-            return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
-        }
-        // pick random position in DECK
-        let p = getRandomIntInclusive(1, 4 * NUMBER_OF_TRICKS - 1)  // p is how many cards you pick up
-        // stack positions [1..p] become [52-p+1..52]
-        // stack positions [p+1..52] become [1..52-p]
-        this.deck.forEach((card, cardi) => cardi <= p ? card.stack += 4 * NUMBER_OF_TRICKS - p : card.stack -= p)
-        console.log(`Deck cut at position ${p}`)
-    }
-
-    set_trump(color) {
-        if (color) {
-            this.deck.filter(card => card.color === color).forEach(card => card.trump = true)
-            this.deck.filter(card => card.color != color).forEach(card => card.trump = false)
-        } else {
-            this.deck.forEach(card => card.trump = false)
-        }
-    }
-
-    deal_cards_to_player(ids, player) {
-        for (const id of ids) {
-            // MOVE CARD FROM STACK TO HAND
-            let card = this.#card_by_id(id)
-            card.state = HAND
-            card.hand = player
-        }
-    }
-
-    play(id, player) {
-        let count = this.deck.filter(card => card.state === TABLE).length
-        let card = this.#card_by_id(id)
-        // MOVE CARD FROM HAND TO TABLE
-        card.state = TABLE
-        card.table = count + 1  // TODO I wonder if this is actually needed
-        card.player = player
-    }
-
-    collect_trick(ids, winning_card_id, number) {
-        let winning_card = this.#card_by_id(winning_card_id)
-        for (const id of ids) {
-            // MOVE CARD FROM TABLE TO TRICKS
-            let card = this.#card_by_id(id)
-            card.state = TRICK
-            card.trick = number
-            card.winner = winning_card.player
-        }
-    }
-
-    new_game() {
-        // MOVE CARDS FROM TRICKS TO STACK
-        this.deck.forEach(card => {
-            card.state = STACK
-            card.trump = null
-            card.stack = 13 * (card.trick - 1) + card.table - 1
-            card.hand = null
-            card.table = null
-            card.player = null
-            card.trick = null
-            card.winner = null
-        })
-    }
-
-    /* data getters */
-
-    /**
-     * Return the id of the (temporary) winning card of the trick composed of input cards
-     * @param {array of strings} ids 
-     * @returns card id with trump mark
-     */
-    evaluate_trick(ids) {
-        function highest_value_card(cards) {
-            // regardless color!
-            return cards.reduce((highest,card) => card.order > highest.order ? card : highest, cards[0])
-        }
-        let cards = this.#cards_by_ids(ids)
-        let highest_trump = highest_value_card(cards.filter(card => card.trump))
-        if (highest_trump) 
-            return highest_trump.id
-        let opening_card = cards.filter(card => card.table === 1).pop()
-        let highest = highest_value_card(cards.filter(card => card.color === opening_card.color))
-        return this.#id_trump(highest)
-    }
-    
-    /**
-     * List the aces that are NOT in the player's hand
-     * @param {string} player 
-     * @returns array of card id's (no trump mark)
-     */
-    get_aces_not_with_player(player) {
-        let cards = this.deck.filter(card => card.value === 'A' && card.hand != player)
-        return cards.map(card => card.id)
-    }
-
-    /**
-     * List all cards according to their order in the stack
-     * @returns array of card id's (no trump mark)
-     */
-    get_cards_in_stack_order() {
-        let stack = this.deck.filter(card => card.state === STACK)
-        let ordered_stack = stack.sort((card1, card2) => card1.stack - card2.stack)
-        return ordered_stack.map(card => card.id)
-    }
-
-    /**
-     * List all cards in the player's hand with the same color
-     * @param {string} player 
-     * @param {string} id 
-     * @returns array of card id's with trump mark
-     */
-    get_hand_cards_with_same_color(player, id) {
-        let color = this.#card_by_id(id).color
-        let cards = this.deck.filter(card => card.state === HAND && card.color === color && card.hand === player)
-        return cards.map(card => this.#id_trump(card))
-    }
-
-    /**
-     * Get the color of the card
-     * @param {string} id 
-     * @returns color of the card
-     */
-    get_color(id) {
-        return this.#card_by_id(id).color
-    }
-
-    /**
-     * Get the player in who's hand the card is
-     * @param {string} id 
-     * @returns player 
-     */
-    get_hand(id) {
-        return this.#card_by_id(id).hand
-    }
-
-    /**
-     * Get each player's hand
-     * @returns object with players as  keys and arrays of card id's with trump mark as values
-     *     (card id's include trump marker '*')
-     */
-    get_hands() {
-        let hands = {}
-        for (const card of this.deck)
-            if (card.state === HAND) 
-                (hands[card.hand] ??= []).push(this.#id_trump(card))
-        return hands
-    }
-
-}
+var Deck = require("./deck")
 
 /**
  * Class representing four players playing a series of whist games.
@@ -279,7 +50,7 @@ class Wiezen {
      */
     deal() {
         let cards_in_stack_order = this.deck.get_cards_in_stack_order()
-        this.set_trump(this.deck.get_color(cards_in_stack_order[4 * NUMBER_OF_TRICKS - 1]))  // latest card in stack
+        this.set_trump(this.deck.get_color(cards_in_stack_order[4 * Wiezen.NUMBER_OF_TRICKS - 1]))  // latest card in stack
         // player after dealer is first player
         let players = this.rotate_players(this.player_after(this.dealer))
         let amounts = [4,4,5]  // should be calculated based on NUMBER_OF_TRICKS for debugging fast games
@@ -305,9 +76,9 @@ class Wiezen {
      * - {number} score_factor - multiplier that will be applied to the score of this game
      */
     initialize_bid() {
-        let games = [...GAMES].filter(game => !game.includes(this.trump))
+        let games = [...Wiezen.GAMES].filter(game => !game.includes(this.trump))
         this.bidding = {
-            game: PAS,
+            game: Wiezen.PAS,
             game_players: [],
             games_open: games,
             games_open_mee: null,
@@ -327,7 +98,7 @@ class Wiezen {
      */
     bid_request() {
         this.bidding.games_open_mee = [...this.bidding.games_open]
-        if (this.bidding.games_open.includes(ALLEEN)) {
+        if (this.bidding.games_open.includes(Wiezen.ALLEEN)) {
             this.bidding.player = this.bidding.game_players[0]
         } else {
             // next player in players_bidding who is not a game player is to bid now 
@@ -335,9 +106,9 @@ class Wiezen {
                 this.bidding.player = this.player_after(this.bidding.player, {list: this.bidding.players_bidding})
             } while (this.bidding.game_players.includes(this.bidding.player))
             // add MEE when applicable (VRAGEN only allows one player to bid MEE)
-            if ([VRAAG, MISERIE, MISERIE_TAFEL].includes(this.bidding.game))
-                if ( ! (this.bidding.game === VRAAG && this.bidding.game_players.length >= 2) )
-                this.bidding.games_open_mee.push(MEE)
+            if ([Wiezen.VRAAG, Wiezen.MISERIE, Wiezen.MISERIE_TAFEL].includes(this.bidding.game))
+                if ( ! (this.bidding.game === Wiezen.VRAAG && this.bidding.game_players.length >= 2) )
+                this.bidding.games_open_mee.push(Wiezen.MEE)
         }
         return this.bidding
     }
@@ -353,33 +124,33 @@ class Wiezen {
      */
     bid(bid) {
         switch (bid) {
-            case MEE:
+            case Wiezen.MEE:
                 this.bidding.game_players.push(this.bidding.player)
                 this.bidding.players_bidding = this.bidding.players_bidding.filter(p => p != this.bidding.player)
                 break
-            case PAS:
-                if (this.bidding.games_open.includes(ALLEEN)) 
-                    this.bidding.game = PAS
+            case Wiezen.PAS:
+                if (this.bidding.games_open.includes(Wiezen.ALLEEN)) 
+                    this.bidding.game = Wiezen.PAS
                 this.bidding.players_bidding = this.bidding.players_bidding.filter(p => p != this.bidding.player)
                 break
-            case ALLEEN:
+            case Wiezen.ALLEEN:
                 this.bidding.game = bid
                 this.bidding.players_bidding = []
                 break
-            case VRAAG:
-            case ABONDANCE_H:
-            case ABONDANCE_S:
-            case ABONDANCE_D:
-            case ABONDANCE_C:
-            case ABONDANCE_TROEF:
-            case MISERIE:
-            case TROEL:
-            case MISERIE_TAFEL:
-            case SOLO_H:
-            case SOLO_S:
-            case SOLO_D:
-            case SOLO_C:
-            case SOLO_SLIM:
+            case Wiezen.VRAAG:
+            case Wiezen.ABONDANCE_H:
+            case Wiezen.ABONDANCE_S:
+            case Wiezen.ABONDANCE_D:
+            case Wiezen.ABONDANCE_C:
+            case Wiezen.ABONDANCE_TROEF:
+            case Wiezen.MISERIE:
+            case Wiezen.TROEL:
+            case Wiezen.MISERIE_TAFEL:
+            case Wiezen.SOLO_H:
+            case Wiezen.SOLO_S:
+            case Wiezen.SOLO_D:
+            case Wiezen.SOLO_C:
+            case Wiezen.SOLO_SLIM:
                 if (this.bidding.game_players.length > 0)
                     // players that have bid a lower game can bid again
                     this.bidding.players_bidding.push(...this.bidding.game_players)
@@ -391,10 +162,10 @@ class Wiezen {
         }
         if (++this.bidding.count_bids === 4) {
             // after a first round, TROEL should be removed
-            this.bidding.games_open = this.bidding.games_open.filter(game => game != TROEL)
+            this.bidding.games_open = this.bidding.games_open.filter(game => game != Wiezen.TROEL)
             // if game is still VRAAG and there's one game player, he can choose to bid ALLEEN
-            if (this.bidding.game === VRAAG && this.bidding.game_players.length === 1) {
-                this.bidding.games_open = [ALLEEN, PAS]
+            if (this.bidding.game === Wiezen.VRAAG && this.bidding.game_players.length === 1) {
+                this.bidding.games_open = [Wiezen.ALLEEN, Wiezen.PAS]
                 this.bidding.players_bidding.push(this.bidding.game_players[0])
             }
         }
@@ -432,36 +203,36 @@ class Wiezen {
         // change trump if needed and set first player
         let next_player = this.player_after(this.dealer)  // player after dealer is to play first by default
         switch (this.bidding.game) {
-            case ABONDANCE_H:
-            case SOLO_H:
-                this.set_trump(HEARTS)
+            case Wiezen.ABONDANCE_H:
+            case Wiezen.SOLO_H:
+                this.set_trump(Deck.HEARTS)
                 next_player = this.bidding.game_players[0]
                 break
-            case ABONDANCE_S:
-            case SOLO_S:
-                this.set_trump(SPADES)
+            case Wiezen.ABONDANCE_S:
+            case Wiezen.SOLO_S:
+                this.set_trump(Deck.SPADES)
                 next_player = this.bidding.game_players[0]
                 break
-            case ABONDANCE_D:
-            case SOLO_D:
-                this.set_trump(DIAMONDS)
+            case Wiezen.ABONDANCE_D:
+            case Wiezen.SOLO_D:
+                this.set_trump(Deck.DIAMONDS)
                 next_player = this.bidding.game_players[0]
                 break
-            case ABONDANCE_C:
-            case SOLO_C:
-                this.set_trump(CLUBS)
+            case Wiezen.ABONDANCE_C:
+            case Wiezen.SOLO_C:
+                this.set_trump(Deck.CLUBS)
                 next_player = this.bidding.game_players[0]
                 break
-            case TROEL:
+            case Wiezen.TROEL:
                 let troel_player = this.bidding.game_players[0]
                 let other_aces = this.deck.get_aces_not_with_player(troel_player)
                 if (! other_aces.length) {
                     // players has 4 aces, so H is trump and highest of H plays first
-                    this.set_trump(HEARTS)
-                    let values = [...VALUES].reverse().shift()  // [K, Q, J,...]
+                    this.set_trump(Deck.HEARTS)
+                    let values = [...Deck.VALUES].reverse().shift()  // [K, Q, J,...]
                     let highest_of_hearts = null
                     for (let value of values) {
-                        let player = this.deck.get_hand(HEARTS + value)
+                        let player = this.deck.get_hand(Deck.HEARTS + value)
                         if (player != troel_player) {
                             next_player = player
                             this.bidding.game_players.push(next_player)
@@ -476,20 +247,20 @@ class Wiezen {
                     this.bidding.game_players.push(next_player)
                 }
                 break
-            case MISERIE:
-            case MISERIE_TAFEL:
+            case Wiezen.MISERIE:
+            case Wiezen.MISERIE_TAFEL:
                 this.set_trump(null)
                 break
         }
         // only rondje pas if no one made a bid!
-        if (this.bidding.game === PAS && this.bidding.count_bids === 4)
-            this.bidding.game = RONDEPAS
+        if (this.bidding.game === Wiezen.PAS && this.bidding.count_bids === 4)
+            this.bidding.game = Wiezen.RONDEPAS
         // initialize tricks per player
         let tricks_per_player = {}
         this.players.forEach(player => tricks_per_player[player] = 0)
         this.playing = {
             game: this.bidding.game,
-            game_playable: [PAS, RONDEPAS].includes(this.bidding.game) ? false : true,
+            game_playable: [Wiezen.PAS, Wiezen.RONDEPAS].includes(this.bidding.game) ? false : true,
             game_players: this.bidding.game_players,
             trump: this.trump,
             player: null,
@@ -570,7 +341,7 @@ class Wiezen {
         this.playing.tricks_per_player[winning_player]++
         this.playing.cards_on_table = []
         this.playing.winning_card = null
-        this.playing.game_done = this.playing.count_tricks >= NUMBER_OF_TRICKS
+        this.playing.game_done = this.playing.count_tricks >= Wiezen.NUMBER_OF_TRICKS
         return this.playing
     }
 
@@ -595,7 +366,7 @@ class Wiezen {
         let score = {}
         this.players.forEach(player => score[player] = 0)
         switch (this.playing.game) {
-            case VRAAG:
+            case Wiezen.VRAAG:
                 if (game_player_tricks === 13) {  // onder tafel
                     game_players.forEach(player => score[player] += 14)
                     opponents.forEach(opponent => score[opponent] -= 14)
@@ -611,7 +382,7 @@ class Wiezen {
                     opponents.forEach(opponent => score[opponent] += 2 + extra)
                 }
                 break
-            case ALLEEN:
+            case Wiezen.ALLEEN:
                 if (game_player_tricks === 13) {  // onder tafel
                     game_players.forEach(player => score[player] += 60)
                     opponents.forEach(opponent => score[opponent] -= 20)
@@ -626,11 +397,11 @@ class Wiezen {
                     game_players.forEach(player => score[player] -= 3 * (2 + extra))
                     opponents.forEach(opponent => score[opponent] += 2 + extra)
                 }
-            case ABONDANCE_H:
-            case ABONDANCE_S:
-            case ABONDANCE_D:
-            case ABONDANCE_C:
-            case ABONDANCE_TROEF:
+            case Wiezen.ABONDANCE_H:
+            case Wiezen.ABONDANCE_S:
+            case Wiezen.ABONDANCE_D:
+            case Wiezen.ABONDANCE_C:
+            case Wiezen.ABONDANCE_TROEF:
                 if (game_player_tricks >= 9) {  // gewonnen
                     game_players.forEach(player => score[player] += 3 * (5))
                     opponents.forEach(opponent => score[opponent] -= 5)
@@ -640,7 +411,7 @@ class Wiezen {
                     opponents.forEach(opponent => score[opponent] += 5)
                 }
                 break
-            case TROEL:
+            case Wiezen.TROEL:
                 if (game_player_tricks === 13) {  // onder tafel
                     game_players.forEach(player => score[player] += 2 * 14)
                     opponents.forEach(opponent => score[opponent] -= 2 * 14)
@@ -656,7 +427,7 @@ class Wiezen {
                     opponents.forEach(opponent => score[opponent] += 2 * (2 + extra))
                 }
                 break
-            case MISERIE:
+            case Wiezen.MISERIE:
                 game_players.forEach(game_player => {
                     let single_player_opponents = this.players.filter(player => player != game_player)
                     if (this.playing.tricks_per_player[game_player] === 0) {  // gewonnen
@@ -668,7 +439,7 @@ class Wiezen {
                     }
                 })
                 break
-            case MISERIE_TAFEL:
+            case Wiezen.MISERIE_TAFEL:
                 game_players.forEach(game_player => {
                     let single_player_opponents = this.players.filter(player => player != game_player)
                     if (this.playing.tricks_per_player[game_player] === 0) {  // gewonnen
@@ -680,10 +451,10 @@ class Wiezen {
                     }
                 })
                 break
-            case SOLO_H:
-            case SOLO_S:
-            case SOLO_D:
-            case SOLO_C:
+            case Wiezen.SOLO_H:
+            case Wiezen.SOLO_S:
+            case Wiezen.SOLO_D:
+            case Wiezen.SOLO_C:
                 if (game_player_tricks === 13) {  // gewonnen
                     game_players.forEach(player => score[player] += 3 * (75))
                     opponents.forEach(opponent => score[opponent] -= 75)
@@ -693,7 +464,7 @@ class Wiezen {
                     opponents.forEach(opponent => score[opponent] += 75)
                 }
                 break
-            case SOLO_SLIM:
+            case Wiezen.SOLO_SLIM:
                 if (game_player_tricks === 13) {  // gewonnen
                     game_players.forEach(player => score[player] += 3 * (150))
                     opponents.forEach(opponent => score[opponent] -= 150)
@@ -730,11 +501,11 @@ class Wiezen {
         this.deck.new_game()
         this.trump = null
         switch (this.playing.game) {
-            case PAS:
+            case Wiezen.PAS:
                 this.dealer = this.player_after(this.dealer)
                 this.rondepas_count = 0
                 break
-            case RONDEPAS:
+            case Wiezen.RONDEPAS:
                 if (this.rondepas_count >= 3) {
                     this.dealer = this.player_after(this.dealer)
                     if (!this.scorefactors[this.game_number + this.rondepas_count])
@@ -785,5 +556,27 @@ class Wiezen {
     
 }
 
-module.exports = Wiezen
+Wiezen.PAS = 'pas'
+Wiezen.RONDEPAS = 'ronde pas'
+Wiezen.VRAAG = 'vraag'
+Wiezen.ABONDANCE_H = 'abondance in ♥'
+Wiezen.ABONDANCE_S = 'abondance in ♠'
+Wiezen.ABONDANCE_D = 'abondance in ♦'
+Wiezen.ABONDANCE_C = 'abondance in ♣'
+Wiezen.ABONDANCE_TROEF = 'abondance in troef'
+Wiezen.MISERIE = 'miserie'
+Wiezen.TROEL = 'troel'
+Wiezen.MISERIE_TAFEL = 'miserie op tafel'
+Wiezen.SOLO_H = 'solo in ♥'
+Wiezen.SOLO_S = 'solo in ♠'
+Wiezen.SOLO_D = 'solo in ♦'
+Wiezen.SOLO_C = 'solo in ♣'
+Wiezen.SOLO_SLIM = 'solo slim'
+Wiezen.MEE = 'meegaan'
+Wiezen.ALLEEN = 'alleen'
+Wiezen.GAMES = [Wiezen.VRAAG, Wiezen.ABONDANCE_H, Wiezen.ABONDANCE_S, Wiezen.ABONDANCE_D, Wiezen.ABONDANCE_C, 
+    Wiezen.ABONDANCE_TROEF, Wiezen.MISERIE, Wiezen.TROEL, Wiezen.MISERIE_TAFEL, Wiezen.SOLO_H, Wiezen.SOLO_S, Wiezen.SOLO_D, Wiezen.SOLO_C, 
+    Wiezen.SOLO_SLIM, Wiezen.PAS]
+Wiezen.NUMBER_OF_TRICKS = Deck.VALUES.length
 
+module.exports = Wiezen
