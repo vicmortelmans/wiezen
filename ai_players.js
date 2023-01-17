@@ -1,5 +1,6 @@
-const Deck = require("./deck")
+var Deck = require("./deck")
 var Wiezen = require("./wiezen")
+var colors = require("colors")
 
 /**
  * class representing four players playing a series of whist games.
@@ -128,25 +129,27 @@ class Wiezen_ai {
     
 }
 
-const prompt = require("prompt-sync")({ sigint: true });
+const PROMPT = require("prompt-sync")({ sigint: true });
 
-function cards_to_string(cards, {numbered = false} = {}) {
-    return cards.map((card, cardi) => card.color + card.value 
-        + (card.trump?'*':'') 
-        + (numbered?`[${cardi}]`:'')).toString()
+function numbered(list) {
+    return list.map((item, itemi) => item + `[${itemi}]`)
 }
 
-function list_to_string_numbered(list) {
-    return list.map((item, itemi) => item + `[${itemi}]`).toString()
+function colored(list) {
+    return list.map(item => {
+        if (!item) return item  // can be null
+        else if (item.includes(Deck.HEARTS)) return item.red
+        else if (item.includes(Deck.DIAMONDS)) return item.red
+        else return item
+    }) 
 }
-
 
 function minimax_player(node, depth, alpha, beta, simulated_player) {
     // static evaluation of node = the number of tricks won + 1 if winning current trick
     if (depth === 0 || node.state.game_done) {
         let eval = node.scores[simulated_player]
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} score is ${eval} tricks for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} score is ${eval} tricks for ${simulated_player}`)
         return [null, node.scores]
     }
     // create the child nodes
@@ -191,7 +194,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
                 break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${max_card_id} maximizing ${max_scores[simulated_player]} tricks for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing ${max_scores[simulated_player]} tricks for ${simulated_player}`)
         return [max_card_id, max_scores]
     }
     else {
@@ -211,7 +214,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
                 break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${node.card_id}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${min_card_id} minimizing ${min_scores[simulated_player]} tricks for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing ${min_scores[simulated_player]} tricks for ${simulated_player}`)
         return [min_card_id, min_scores]
     }
 }
@@ -227,7 +230,7 @@ while (true) {
     let hands = wiezen.deal()
 
     players.forEach(player => {
-        console.log(`Hand of ${player}: ${hands[player].toString()}`)
+        console.log(`Hand of ${player}: ${colored(hands[player]).toString()}`)
     })
 
     let bidding_state = wiezen.initialize_bid()
@@ -239,13 +242,13 @@ while (true) {
         console.log(`game bid: ${bidding_state.game}`)
         console.log(`by: ${bidding_state.game_players.toString()}`)
         console.log(`higher bid is open to: ${bidding_state.player}`)
-        console.log(`open games: ${list_to_string_numbered(bidding_state.games_open_mee)}`)
+        console.log(`open games: ${numbered(bidding_state.games_open_mee).toString()}`)
         if (bidding_state.score_factor) {
             console.log(`score factor: ${bidding_state.score_factor}`)
         }
         let idx
         do {
-            idx = parseInt(prompt("which game do you bid for? "));
+            idx = parseInt(PROMPT("which game do you bid for? "));
         } while (isNaN(idx) || idx < 0 || idx >= bidding_state.games_open_mee.length)
         let bid = bidding_state.games_open_mee[idx]
             
@@ -259,7 +262,7 @@ while (true) {
 
         console.log(`Game set: ${play_state.game}`)
         console.log(`Player(s): ${play_state.game_players}`)
-        console.log(`Trump: ${play_state.trump}`)
+        console.log(`Trump: ${colored([play_state.trump]).toString()}`)
 
         let game_tree = null
 
@@ -290,11 +293,11 @@ while (true) {
             // during this process, the game tree is filled in to a certain depth
             let [card_id, scores] = minimax_player(game_tree, 2, -999, 999, play_state.player)
 
-            console.log(`Table: ${play_state.cards_on_table.toString()}`)
-            console.log(`Hand of ${play_state.player}: ${play_state.hands[play_state.player].toString()}`)
-            console.log(`Play card from: ${list_to_string_numbered(play_state.playable_cards)}`)
+            console.log(`Table: ${colored(play_state.cards_on_table).toString()}`)
+            console.log(`Hand of ${play_state.player}: ${colored(play_state.hands[play_state.player]).toString()}`)
+            console.log(`Play card from: ${colored(numbered(play_state.playable_cards)).toString()}`)
 
-            prompt(`${play_state.player} plays ${card_id}. Continue...`)
+            PROMPT(`${play_state.player} plays ${colored([card_id]).toString()}. Continue...`)
 
             play_state = wiezen.play(card_id)
 
@@ -303,7 +306,7 @@ while (true) {
 
             if (play_state.cards_on_table.length === 4) {
 
-                console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${play_state.winning_card}): ${play_state.cards_on_table.toString()}`)
+                console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${colored([play_state.winning_card]).toString()}): ${colored(play_state.cards_on_table).toString()}`)
 
                 play_state = wiezen.collect_trick()
 
