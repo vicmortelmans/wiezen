@@ -1,9 +1,20 @@
 var Wiezen = require("./wiezen")
+var Deck = require("./deck")
+var colors = require("colors")
 
 const PROMPT = require("prompt-sync")({ sigint: true });
 
-function list_to_string_numbered(list) {
-    return list.map((item, itemi) => item + `[${itemi}]`).toString()
+function numbered(list) {
+    return list.map((item, itemi) => item + `[${itemi}]`)
+}
+
+function colored(list) {
+    return list.map(item => {
+        if (!item) return item  // can be null
+        else if (item.includes(Deck.HEARTS)) return item.red
+        else if (item.includes(Deck.DIAMONDS)) return item.red
+        else return item
+    }) 
 }
 
 let players = ['Joe', 'Jack', 'William', 'Avarell']
@@ -17,7 +28,7 @@ while (true) {
     let hands = wiezen.deal()
 
     players.forEach(player => {
-        console.log(`Hand of ${player}: ${hands[player].toString()}`)
+        console.log(`Hand of ${player}: ${colored(hands[player]).toString()}`)
     })
 
     let bidding_state = wiezen.initialize_bid()
@@ -29,7 +40,7 @@ while (true) {
         console.log(`Game bid: ${bidding_state.game}`)
         console.log(`By: ${bidding_state.game_players.toString()}`)
         console.log(`Higher bid is open to: ${bidding_state.player}`)
-        console.log(`Open games: ${list_to_string_numbered(bidding_state.games_open_mee)}`)
+        console.log(`Open games: ${numbered(bidding_state.games_open_mee).toString()}`)
         if (bidding_state.score_factor) {
             console.log(`Score factor: ${bidding_state.score_factor}`)
         }
@@ -49,15 +60,15 @@ while (true) {
 
         console.log(`Game set: ${play_state.game}`)
         console.log(`Player(s): ${play_state.game_players}`)
-        console.log(`Trump: ${play_state.trump}`)
+        console.log(`Trump: ${colored([play_state.trump]).toString()}`)
 
         do {
 
             play_state = wiezen.play_request()
 
             console.log(`Table: ${play_state.cards_on_table.toString()}`)
-            console.log(`Hand of ${play_state.player}: ${play_state.hands[play_state.player].toString()}`)
-            console.log(`Play card from: ${list_to_string_numbered(play_state.playable_cards)}`)
+            console.log(`Hand of ${play_state.player}: ${colored(play_state.hands[play_state.player]).toString()}`)
+            console.log(`Play card from: ${colored(numbered(play_state.playable_cards)).toString()}`)
             let idx
             do {
                 idx = parseInt(PROMPT("Which card will you play? "));
@@ -68,7 +79,7 @@ while (true) {
 
             if (play_state.cards_on_table.length === 4) {
 
-                console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${play_state.winning_card}): ${play_state.cards_on_table.toString()}`)
+                console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${colored([play_state.winning_card]).toString()}): ${colored(play_state.cards_on_table).toString()}`)
 
                 play_state = wiezen.collect_trick()
 

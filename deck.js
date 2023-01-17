@@ -1,32 +1,49 @@
+let LocalStorage = require('node-localstorage').LocalStorage
+let localStorage = new LocalStorage('./deck')
+
+/**
+ * 
+ */
 class Deck {
     deck  // array of cards (see constructor for attributes)
     
+    /**
+     * 
+     * @param {object} deck (optional). If deck is provided, its contents is cloned.
+     * Without arguments, the deck that was stored after the last game is restored.
+     * If there's no deck stored, a fresh deck is created.
+     */
     constructor(deck) {
         if (deck) {
             // clone an existing deck (cf. wiezen_ai)
             this.deck = JSON.parse(JSON.stringify(deck.deck))
         }
         else {
-            // create the deck of cards:
-            this.deck = []
-            Deck.COLORS.forEach((c, ci) => {
-                Deck.VALUES.forEach((v, vi) => {
-                    this.deck.push({
-                        color: c,
-                        value: v,
-                        id: c+v,
-                        order: 13 * ci + vi,  // only for comparing
-                        state: Deck.STACK,  // STACK -> HAND -> TABLE -> TRICK
-                        trump: null,  // boolean
-                        stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
-                        hand: null,  // name of the player who owned the card
-                        table: null,  // range 1..4 order of cards on the table
-                        player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
-                        trick: null, // range 1..13 order of the tricks
-                        winner: null  // name of the player in who won the trick containing this card
+            // retrieve the deck stored after the last game
+            this.deck = JSON.parse(localStorage.getItem('deck'))
+            if (!this.deck) {
+                // create the deck of cards:
+                console.log("A fresh deck is taken out of the box.")
+                this.deck = []
+                Deck.COLORS.forEach((c, ci) => {
+                    Deck.VALUES.forEach((v, vi) => {
+                        this.deck.push({
+                            color: c,
+                            value: v,
+                            id: c+v,
+                            order: 13 * ci + vi,  // only for comparing
+                            state: Deck.STACK,  // STACK -> HAND -> TABLE -> TRICK
+                            trump: null,  // boolean
+                            stack: 13 * ci + vi + 1,  // range 1..52 order of the cards in the stack before dealing
+                            hand: null,  // name of the player who owned the card
+                            table: null,  // range 1..4 order of cards on the table
+                            player: null, // name of the player who put the card on the table (same as hand, but only filled in when played)
+                            trick: null, // range 1..13 order of the tricks
+                            winner: null  // name of the player in who won the trick containing this card
+                        })
                     })
                 })
-            })
+            }
         }
     }
 
@@ -113,6 +130,7 @@ class Deck {
             card.trick = null
             card.winner = null
         })
+        localStorage.setItem('deck',JSON.stringify(this.deck))
     }
 
     /* data getters */
