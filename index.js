@@ -42,7 +42,7 @@ wss.on("connection", ws => {
             }
             else if (p.status === AANMELDEND) {
                 message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
-                    aantal: aantal,
+                    aantal: aantal
                 })
             }
             message.id = "content"
