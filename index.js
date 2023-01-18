@@ -6,35 +6,54 @@ const server_mode = process.env.CODE_SERVER_MODE || 'DEBUG'
 const WebSocketServer = require('ws')
 const wss = new WebSocketServer.Server({ port: ws_port })
 const pug = require("pug")
+const WACHTEND = "wachtend"
+const AANMELDEND = "aanmeldend"
 let clients = []
-let aantal = 0 
+let aantal = 0
 class Player {
     ws
     naam
     status
-    constructor(ws){
-        this.ws=ws
-        this.status = "aanmeldend"
+    constructor(ws) {
+        this.ws = ws
+        this.status = AANMELDEND
     }
 }
 
 wss.on("connection", ws => {
     let player = new Player(ws)
     clients.push(player)
-    message = {} 
-    message.htmlFragment= pug.renderFile("views/aanmelden.pug", {aantal: aantal})
-    message.id= "content"
+    let message = {}
+    message.htmlFragment = pug.renderFile("views/aanmelden.pug", { aantal: aantal })
+    message.id = "content"
     ws.send(JSON.stringify(message))
     ws.on("message", data => {
-        aantal= aantal+1
-        player.naam= data
-        player.status= "wachtend"
+        aantal = aantal + 1
+        player.naam = data
+        player.status = WACHTEND
+        for (const p of clients) {
+            let message = {}
+            if (p.status === WACHTEND) {
+                message.htmlFragment = pug.renderFile("views/wachtend.pug", {
+                    aantal: aantal,
+                    naam: p.naam,
+                    clients: clients
+                })
+            }
+            else if (p.status === AANMELDEND) {
+                message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
+                    aantal: aantal,
+                })
+            }
+            message.id = "content"
+            p.ws.send(JSON.stringify(message))
+        }
     })
 
     ws.on("close", () => {
-        for(const [key, value] of Object.entries(clients)) {
-            if (ws === value){
-                aantal= aantal-1
+        for (const [key, value] of Object.entries(clients)) {
+            if (ws === value) {
+                aantal = aantal - 1
                 delete clients[key]
             }
         }
@@ -57,5 +76,5 @@ app.get("/", (req, res) => {
 app.use(express.static("public"))
 
 app.listen(http_port, () => {
-console.log(`Example app listening on port ${http_port}`)
+    console.log(`Example app listening on port ${http_port}`)
 })

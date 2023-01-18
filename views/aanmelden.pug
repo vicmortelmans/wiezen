@@ -4,3 +4,8 @@ div#invoerVeld
     button#Knop Submit
 p Er zijn momenteel #{aantal} spelers aan het wachten
 
+script.
+    document.getElementById("Knop").addEventListener("click", () => {
+        let naam = (document.getElementById("input").value)
+        ws.send(naam)
+    })
