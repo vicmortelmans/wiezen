@@ -205,7 +205,7 @@ class Deck {
     }
 
     /**
-     * Get each player's hand
+     * Get each player's hand. Players with no cards get no key in the object!!
      * @returns object with players as  keys and arrays of card id's with trump mark as values
      *     (card id's include trump marker '*')
      */

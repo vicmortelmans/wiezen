@@ -27,9 +27,7 @@ while (true) {
 
     let hands = wiezen.deal()
 
-    players.forEach(player => {
-        console.log(`Hand of ${player}: ${colored(hands[player]).toString()}`)
-    })
+    for (const player of players) console.log(`Hand of ${player}: ${colored(hands[player]).toString()}`)
 
     let bidding_state = wiezen.initialize_bid()
 
@@ -83,9 +81,7 @@ while (true) {
 
                 play_state = wiezen.collect_trick()
 
-                players.forEach(player => {
-                    console.log(`Tricks won by ${player}: ${play_state.tricks_per_player[player]}`)
-                })
+                for (const player of players) console.log(`Tricks won by ${player}: ${play_state.tricks_per_player[player]}`)
         
             }
 
@@ -93,21 +89,11 @@ while (true) {
 
         let {tricks_per_player, score, old_cumulative_score, new_cumulative_score, score_factor} = wiezen.calculate_score()
 
-        players.forEach(player => {
-            console.log(`Tricks won by ${player}: ${tricks_per_player[player]}`)
-        })
-        players.forEach(player => {
-            console.log(`Score of ${player}: ${score[player]}`)
-        })
-        if (score_factor) {
-            console.log(`Score factor: ${score_factor}`)
-        }
-        players.forEach(player => {
-            console.log(`Total original score of ${player}: ${old_cumulative_score[player]}`)
-        })
-        players.forEach(player => {
-            console.log(`Total new score of ${player}: ${new_cumulative_score[player]}`)
-        })
+        for (const player of players) console.log(`Tricks won by ${player}: ${tricks_per_player[player]}`)
+        for (const player of players) console.log(`Score of ${player}: ${score[player]}`)
+        if (score_factor) console.log(`Score factor: ${score_factor}`)
+        for (const player of players) console.log(`Total original score of ${player}: ${old_cumulative_score[player]}`)
+        for (const player of players) console.log(`Total new score of ${player}: ${new_cumulative_score[player]}`)
     
     } else {
 
