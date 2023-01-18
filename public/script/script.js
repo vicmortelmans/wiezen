@@ -1,7 +1,7 @@
-document.getElementById("Knop").addEventListener("click", () => {
+/*document.getElementById("Knop").addEventListener("click", () => {
     naam = (document.getElementById("input").value)
     ws.send(naam)
-})
+})*/
 
 ws.addEventListener('message', function (event){
     console.log("message reveived" + event.data)

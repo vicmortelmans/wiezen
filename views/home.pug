@@ -5,15 +5,7 @@ html
         link(rel ="stylesheet" type="text/css" href="css/style.css")
         meta(name="viewport" content="width=device-width, initial-scale=1")
     body
-        div#invoerVeld
-            label Voer ja naam in 
-            input#input()
-            button#Knop Submit
-        div#spelerNaam
-            span Jij bent 
-            span#player.naam player
-            span#spelerNummer.naam  1
-        div#aanmelden
+        div#content
 
         script const ws = new WebSocket(`wss://${location.hostname}#{ws_port_suffix}#{ws_port}`)
         script(src="script/script.js")

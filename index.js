@@ -5,30 +5,31 @@ const ws_port = process.env.CODE_SERVER_PORT_WS || 3002
 const server_mode = process.env.CODE_SERVER_MODE || 'DEBUG'
 const WebSocketServer = require('ws')
 const wss = new WebSocketServer.Server({ port: ws_port })
-let clients = {}
+const pug = require("pug")
+let clients = []
 let aantal = 0 
-class players {
-    name
-    constructor(name){
-        this.name=name
+class Player {
+    ws
+    naam
+    status
+    constructor(ws){
+        this.ws=ws
+        this.status = "aanmeldend"
     }
 }
 
-
-
-
-
 wss.on("connection", ws => {
+    let player = new Player(ws)
+    clients.push(player)
+    message = {} 
+    message.htmlFragment= pug.renderFile("views/aanmelden.pug", {aantal: aantal})
+    message.id= "content"
+    ws.send(JSON.stringify(message))
     ws.on("message", data => {
         aantal= aantal+1
-        clients[data]=ws
-        message = {} 
-        message.htmlFragment= pug.render("aanmelden"), {naam: data, count: aantal}
-        message.id= "aanmelden"
-        ws.send(JSON.stringify(message))
+        player.naam= data
+        player.status= "wachtend"
     })
-
-
 
     ws.on("close", () => {
         for(const [key, value] of Object.entries(clients)) {
