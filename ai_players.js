@@ -21,8 +21,15 @@ class Wiezen_ai {
         this.players = [...wiezen.players]
         this.trump = wiezen.trump
         this.playing = JSON.parse(JSON.stringify(wiezen.playing))  // clone the playing object
-        this.playing.depleted_colors = {}
-        this.players.forEach(player => this.playing.depleted_colors[player] = [])
+        // Initialize the extra state elements used for developing the gametree
+        if (!this.playing.hasOwnProperty('depleted_colors')) {
+            // this is: if it's cloned from a Wiezen (not Wiezen_ai) object!
+            this.playing.depleted_colors = {}
+            this.players.forEach(player => this.playing.depleted_colors[player] = [])
+        }
+        if (!this.playing.hasOwnProperty('all_playable_cards')) {
+            this.playing.all_playable_cards = [...this.playing.playable_cards]
+        }
     }
 
     play_request() {
@@ -53,40 +60,6 @@ class Wiezen_ai {
             for (const card_id of this.playing.hands[player])
                 if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
                     this.playing.all_playable_cards.push(card_id)
-        return this.playing
-    }
-
-    /**
-     * ai auxiliary method
-     * prepare data for playing the next card, but not knowing how the other hands are dealt:
-     * - who is the player (player)?
-     * - which cards can be played (playable_cards)?
-     * @returns {object} state - object for keeping track of the playing workflow
-     */
-    play_request_from_viewpoint_of_player(simulated_player) {
-        // this function is only for when player's opponents have to play!
-        if (simulated_player === this.playing.next_player)
-            return this.play_request()
-        // next player is to play now
-        this.playing.player = this.playing.next_player
-        this.playing.next_player = null
-        // all remaining cards are playable, apart from the colors that the player didn't follow earlier
-        this.playing.playable_cards = []
-        if (this.playing.cards_on_table.length > 0) {
-            let opening_card_color = this.deck.get_color(this.playing.cards_on_table[0])
-            for (const player of this.players) 
-                if (player != simulated_player)
-                    for (const card_id of this.playing.hands[player])
-                        if (this.deck.get_color(card_id) === opening_card_color)
-                            if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
-                                this.playing.playable_cards.push(card_id)
-        }
-        else 
-            for (const player of this.players) 
-                if (player != simulated_player)
-                    for (const card_id of this.playing.hands[player])
-                        if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
-                            this.playing.playable_cards.push(card_id)
         return this.playing
     }
 
@@ -150,16 +123,26 @@ class Wiezen_ai {
 const PROMPT = require("prompt-sync")({ sigint: true });
 
 function numbered(list) {
-    return list.map((item, itemi) => item + `[${itemi}]`)
+    try {
+        return list.map((item, itemi) => item + `[${itemi}]`)
+    }
+    catch (e) {
+        return []
+    }
 }
 
 function colored(list) {
-    return list.map(item => {
-        if (!item) return item  // can be null
-        else if (item.includes(Deck.HEARTS)) return item.red
-        else if (item.includes(Deck.DIAMONDS)) return item.red
-        else return item
-    }) 
+    try {
+        return list.map(item => {
+            if (!item) return item  // can be null
+            else if (item.includes(Deck.HEARTS)) return item.red
+            else if (item.includes(Deck.DIAMONDS)) return item.red
+            else return item
+        }) 
+    }
+    catch (e) {
+        return []
+    }
 }
 
 /**
@@ -234,7 +217,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
     if (depth === 0 || node.state.game_done) {
         let eval = node_evaluation(node, simulated_player)
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} evaluation is ${eval} simulated for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player} missing ${colored(node.state.depleted_colors[node.player]).toString()}): At card ${card_nr} evaluation is ${eval} simulated for ${simulated_player}`)
         return [null, eval]
     }
     // create the child nodes
@@ -277,7 +260,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             }
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing evaluation ${max_eval} simulated for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player} missing ${colored(node.state.depleted_colors[node.player]).toString()}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing evaluation ${max_eval} simulated for ${simulated_player}`)
         return [max_card_id, max_eval]
     }
     else {
@@ -297,7 +280,7 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             }
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing evaluation ${min_eval} simulated for ${simulated_player}`)
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player} missing ${colored(node.state.depleted_colors[node.player]).toString()}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing evaluation ${min_eval} simulated for ${simulated_player}`)
         return [min_card_id, min_eval]
     }
 }
@@ -351,9 +334,6 @@ while (true) {
 
             play_state = wiezen.play_request()
 
-            // Initialize the extra state element used for developing the gametree
-            play_state.all_playable_cards = [...play_state.playable_cards]
-
             // Initialize gametree
             // Each node has properties:
             // - card (only for logging)
@@ -362,20 +342,22 @@ while (true) {
             // - object wiezen_ai
             // - map by card child nodes
             // - list by player of the evaluation in this node (= count of tricks + winning hand)
-            if (!game_tree) 
+            if (!game_tree) {
+                let wiezen_clone = new Wiezen_ai(wiezen)
                 game_tree = {
-                    card: null,  // the card that got me in this node
+                    card_id: null,  // the card that got me in this node
                     player: null,  // the player that played this card
-                    state: play_state,  // current play_state snapshot, after play_request call
-                    wiezen: new Wiezen_ai(wiezen),
+                    state: wiezen_clone.playing,  // current play_state snapshot, after play_request call, run through constructor of Wiezen_ai!
+                    wiezen: wiezen_clone,
                     children: new Map(),
                     scores: [],
                     parent: null
                 }
+            }
 
             // let the minimax algorithm choose a card
             // during this process, the game tree is filled in to a certain depth
-            let [card_id, eval] = minimax_player(game_tree, 2, -999, 999, play_state.player)
+            let [card_id, eval] = minimax_player(game_tree, 3, -999, 999, play_state.player)
 
             console.log(`Table: ${colored(play_state.cards_on_table).toString()}`)
             console.log(`Hand of ${play_state.player}: ${colored(play_state.hands[play_state.player]).toString()}`)
