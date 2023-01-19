@@ -29,7 +29,7 @@ class Wiezen_ai {
         // next player is to play now
         this.playing.player = this.playing.next_player
         this.playing.next_player = null
-        // look at table cards to set playable 
+        // look at table cards and own hand to set playable 
         this.playing.playable_cards = []
         if (this.playing.cards_on_table.length > 0) {
             // only cards with same color as opening card are playable
@@ -45,6 +45,14 @@ class Wiezen_ai {
             // all cards are playable
             this.playing.playable_cards = [...this.playing.hands[this.playing.player]]
         }
+        // ALL playable cards include all remaining cards, apart from the colors that the player didn't follow earlier
+        // it is not taken into account if the color of the opening card is followed
+        // it is not taken into account who is the simulated player, because the node can be used for simulating any player
+        this.playing.all_playable_cards = []
+        for (const player of this.players) 
+            for (const card_id of this.playing.hands[player])
+                if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
+                    this.playing.all_playable_cards.push(card_id)
         return this.playing
     }
 
@@ -64,14 +72,16 @@ class Wiezen_ai {
         this.playing.next_player = null
         // all remaining cards are playable, apart from the colors that the player didn't follow earlier
         this.playing.playable_cards = []
-        let opening_card_color = this.deck.get_color(this.playing.cards_on_table[0])
-        for (const player of this.players) 
-            if (player != simulated_player)
-                for (const card_id of this.playing.hands[player])
-                    if (this.deck.get_color(card_id) === opening_card_color)
-                        if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
-                            this.playing.playable_cards.push(card_id)
-        if (this.playing.playable_cards.length === 0)
+        if (this.playing.cards_on_table.length > 0) {
+            let opening_card_color = this.deck.get_color(this.playing.cards_on_table[0])
+            for (const player of this.players) 
+                if (player != simulated_player)
+                    for (const card_id of this.playing.hands[player])
+                        if (this.deck.get_color(card_id) === opening_card_color)
+                            if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
+                                this.playing.playable_cards.push(card_id)
+        }
+        else 
             for (const player of this.players) 
                 if (player != simulated_player)
                     for (const card_id of this.playing.hands[player])
@@ -171,8 +181,8 @@ function node_evaluation(node, simulated_player) {
     if (node.state.winning_card)
         scores[node.wiezen.get_hand(node.state.winning_card)] += 0.5
     // score is higher for a higher card
-    for (const card_id of node.state.cards_on_table)
-        scores[node.wiezen.get_hand(card_id)] += 0.01 * node.wiezen.deck.get_value_index(card_id)
+    //for (const card_id of node.state.cards_on_table)
+    //    scores[node.wiezen.get_hand(card_id)] += 0.01 * node.wiezen.deck.get_value_index(card_id)
     // accumulate the scores, depending on the game that's played
     let eval = 0
     for (const player of node.wiezen.players) {
@@ -228,14 +238,18 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
         return [null, eval]
     }
     // create the child nodes
-    node.state.playable_cards.forEach(card_id => {
+    // note that ALL playable cards include all cards
+    // - that are not yet played and
+    // - that are not of a color of which all know the player is depleted
+    // it is not taken into account if the color of the opening card is followed
+    node.state.all_playable_cards.forEach(card_id => {
         if (!node.children.has(card_id)) {
             let wiezen_clone = new Wiezen_ai(node.wiezen)
             let play_state = wiezen_clone.play(card_id)
             if (play_state.cards_on_table.length === 4) {
                 play_state = wiezen_clone.collect_trick()
             }
-            play_state = wiezen_clone.play_request_from_viewpoint_of_player(simulated_player) // imporant to keep other hands closed!
+            play_state = wiezen_clone.play_request(simulated_player) // imporant to keep other hands closed!
             node.children.set(card_id, {
                 card_id: card_id,  // only for logging
                 player: node.state.player,  // only for logging
@@ -246,19 +260,21 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
             })
         }
     })
-    node.wiezen = null  // don't need it anymore
     if (simulated_player === node.state.player) {
         let max_eval = -999
         let max_card_id
         for (const [card_id, child] of node.children) {
-            let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
-            if (eval > max_eval) {
-                max_eval = eval
-                max_card_id = card_id
+            // the simulated player should only consider playing the cards he's allowed to play!
+            if (node.state.playable_cards.includes(card_id)) {
+                let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
+                if (eval > max_eval) {
+                    max_eval = eval
+                    max_card_id = card_id
+                }
+                alpha = Math.max(alpha, eval)
+                if (beta <= alpha)
+                    break
             }
-            alpha = Math.max(alpha, eval)
-            if (beta <= alpha)
-                break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
         console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing evaluation ${max_eval} simulated for ${simulated_player}`)
@@ -268,14 +284,17 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
         let min_eval = 999
         let min_card_id
         for (const [card_id, child] of node.children) {
-            let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
-            if (eval < min_eval) {
-                min_eval = eval
-                min_card_id = card_id
+            // the simulated player should consider another player playing any card that he himself is not holding!
+            if (node.wiezen.get_hand(card_id) != simulated_player) {
+                let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
+                if (eval < min_eval) {
+                    min_eval = eval
+                    min_card_id = card_id
+                }
+                beta = Math.min(beta, eval)
+                if (beta <= alpha)
+                    break
             }
-            beta = Math.min(beta, eval)
-            if (beta <= alpha)
-                break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
         console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing evaluation ${min_eval} simulated for ${simulated_player}`)
@@ -331,6 +350,9 @@ while (true) {
         do {
 
             play_state = wiezen.play_request()
+
+            // Initialize the extra state element used for developing the gametree
+            play_state.all_playable_cards = [...play_state.playable_cards]
 
             // Initialize gametree
             // Each node has properties:
