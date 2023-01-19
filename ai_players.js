@@ -55,20 +55,28 @@ class Wiezen_ai {
      * - which cards can be played (playable_cards)?
      * @returns {object} state - object for keeping track of the playing workflow
      */
-    play_request_from_viewpoint_of_player(watchingplayer) {
+    play_request_from_viewpoint_of_player(simulated_player) {
         // this function is only for when player's opponents have to play!
-        if (watchingplayer === this.playing.next_player)
+        if (simulated_player === this.playing.next_player)
             return this.play_request()
         // next player is to play now
         this.playing.player = this.playing.next_player
         this.playing.next_player = null
         // all remaining cards are playable, apart from the colors that the player didn't follow earlier
         this.playing.playable_cards = []
+        let opening_card_color = this.deck.get_color(this.playing.cards_on_table[0])
         for (const player of this.players) 
-            if (player != watchingplayer)
+            if (player != simulated_player)
                 for (const card_id of this.playing.hands[player])
-                    if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
-                        this.playing.playable_cards.push(card_id)
+                    if (this.deck.get_color(card_id) === opening_card_color)
+                        if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
+                            this.playing.playable_cards.push(card_id)
+        if (this.playing.playable_cards.length === 0)
+            for (const player of this.players) 
+                if (player != simulated_player)
+                    for (const card_id of this.playing.hands[player])
+                        if (!this.playing.depleted_colors[player].includes(this.deck.get_color(card_id)))
+                            this.playing.playable_cards.push(card_id)
         return this.playing
     }
 
@@ -144,34 +152,96 @@ function colored(list) {
     }) 
 }
 
+/**
+ * At a specific play state, calculate for each player the current score, taking into account:
+ * - the number of tricks he won (+0..+13)
+ * - the number of tricks his opponents won (-0..-13)
+ * - whether he's winning the trick on the table (+0.5)
+ * - whether he's played in the trick on the table a high card (+0..+0.12)
+ * @param {object} node - the gametree object containing the play state  
+ * @param {object} simulated_player - the player for which the state is evaluated
+ * @returns {number} the evaluation for the simulated player - higher values are 'good' for that player,
+ * lower values are 'bad' for that player 
+ */
+function node_evaluation(node, simulated_player) {
+    // calculate for each player a score, based on the number of tricks they won,
+    // 'spiced' with info from the ongoing trick
+    let scores = {...node.state.tricks_per_player}
+    // score is higher for temporary winner of the trick
+    if (node.state.winning_card)
+        scores[node.wiezen.get_hand(node.state.winning_card)] += 0.5
+    // score is higher for a higher card
+    for (const card_id of node.state.cards_on_table)
+        scores[node.wiezen.get_hand(card_id)] += 0.01 * node.wiezen.deck.get_value_index(card_id)
+    // accumulate the scores, depending on the game that's played
+    let eval = 0
+    for (const player of node.wiezen.players) {
+        let score = scores[player]
+        if (node.state.game === Wiezen.VRAAG) 
+            if (node.state.game_players.includes(simulated_player)) 
+                if (node.state.game_players.includes(player))
+                    // player and simulated player are partners (or perhaps the same)
+                    eval += score
+                else
+                    // player is an opponent of simulated player 
+                    eval -= score
+            else 
+                if (node.state.game_players.includes(player))
+                    // player is an opponent of simulated player 
+                    eval -= score
+                else
+                    // player and simulated player are partners (or perhaps the same)
+                    eval += score
+        else if (node.state.game === Wiezen.MISERIE || node.state.game === Wiezen.MISERIE_TAFEL) 
+            if (player === simulated_player) 
+                eval -= score
+            else 
+                eval += score
+        else 
+            if (player === simulated_player) 
+                eval += score
+            else 
+                eval -= score
+    }
+    return eval
+}
+
+/**
+ * Minimax recursive algorithm to find the best card to be played. 
+ * @param {object} node - the position in the game at which a card must be played
+ * @param {number} depth - the number of future cards that will be considered for optimization
+ * @param {number} alpha 
+ * @param {number} beta 
+ * @param {string} simulated_player - the player for whom the evaluation is done
+ * - on the initial function call, this is always the player who has to play the next card
+ * - inside the recursion, this may be another player!
+ * @returns [card_id, eval] {[string, object]} card_id and evaluation when playing that card
+ * - on the initial function call: the best card for the simulated player to play
+ * - inside the recursion, the best card for the player in this node to play
+ */
 function minimax_player(node, depth, alpha, beta, simulated_player) {
     // static evaluation of node = the number of tricks won + 1 if winning current trick
     if (depth === 0 || node.state.game_done) {
-        let eval = node.scores[simulated_player]
+        let eval = node_evaluation(node, simulated_player)
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} score is ${eval} tricks for ${simulated_player}`)
-        return [null, node.scores]
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} evaluation is ${eval} simulated for ${simulated_player}`)
+        return [null, eval]
     }
     // create the child nodes
     node.state.playable_cards.forEach(card_id => {
-        // store scores in the node
         if (!node.children.has(card_id)) {
             let wiezen_clone = new Wiezen_ai(node.wiezen)
             let play_state = wiezen_clone.play(card_id)
             if (play_state.cards_on_table.length === 4) {
                 play_state = wiezen_clone.collect_trick()
             }
-            play_state = wiezen_clone.play_request()
-            let scores = play_state.tricks_per_player 
-            if (play_state.winning_card)
-                scores[wiezen_clone.get_hand(play_state.winning_card)]++
+            play_state = wiezen_clone.play_request_from_viewpoint_of_player(simulated_player) // imporant to keep other hands closed!
             node.children.set(card_id, {
                 card_id: card_id,  // only for logging
                 player: node.state.player,  // only for logging
                 state: play_state,
                 wiezen: wiezen_clone,
                 children: new Map(),
-                scores: scores,
                 parent: node  // only for debugging
             })
         }
@@ -179,43 +249,37 @@ function minimax_player(node, depth, alpha, beta, simulated_player) {
     node.wiezen = null  // don't need it anymore
     if (simulated_player === node.state.player) {
         let max_eval = -999
-        let max_card_id, max_scores
+        let max_card_id
         for (const [card_id, child] of node.children) {
-            //console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
-            let [next_card_id, scores] = minimax_player(child, depth-1, alpha, beta, simulated_player)
-            let eval = scores[simulated_player]
+            let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
             if (eval > max_eval) {
                 max_eval = eval
                 max_card_id = card_id
-                max_scores = scores
             }
             alpha = Math.max(alpha, eval)
             if (beta <= alpha)
                 break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing ${max_scores[simulated_player]} tricks for ${simulated_player}`)
-        return [max_card_id, max_scores]
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([max_card_id]).toString()} maximizing evaluation ${max_eval} simulated for ${simulated_player}`)
+        return [max_card_id, max_eval]
     }
     else {
         let min_eval = 999
-        let min_card_id, min_scores
+        let min_card_id
         for (const [card_id, child] of node.children) {
-            //console.log(`Going to calculate score @${node.state.count_tricks * 4 + node.state.cards_on_table.length} for ${simulated_player} if ${node.state.player} virtually plays ${card_id}`)
-            let [next_card_id, scores] = minimax_player(child, depth-1, alpha, beta, simulated_player)
-            let eval = scores[simulated_player]
+            let [next_card_id, eval] = minimax_player(child, depth-1, alpha, beta, simulated_player)
             if (eval < min_eval) {
                 min_eval = eval
                 min_card_id = card_id
-                min_scores = scores
             }
             beta = Math.min(beta, eval)
             if (beta <= alpha)
                 break
         }
         let card_nr = node.state.count_tricks * 4 + node.state.cards_on_table.length + 1
-        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing ${min_scores[simulated_player]} tricks for ${simulated_player}`)
-        return [min_card_id, min_scores]
+        console.log(`${' '.repeat(card_nr)}- ${colored([node.card_id]).toString()}(${node.player}): At card ${card_nr} ${node.state.player}'s best card is ${colored([min_card_id]).toString()} minimizing evaluation ${min_eval} simulated for ${simulated_player}`)
+        return [min_card_id, min_eval]
     }
 }
 
@@ -289,7 +353,7 @@ while (true) {
 
             // let the minimax algorithm choose a card
             // during this process, the game tree is filled in to a certain depth
-            let [card_id, scores] = minimax_player(game_tree, 2, -999, 999, play_state.player)
+            let [card_id, eval] = minimax_player(game_tree, 2, -999, 999, play_state.player)
 
             console.log(`Table: ${colored(play_state.cards_on_table).toString()}`)
             console.log(`Hand of ${play_state.player}: ${colored(play_state.hands[play_state.player]).toString()}`)

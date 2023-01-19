@@ -217,6 +217,11 @@ class Deck {
         return hands
     }
 
+    get_value_index(id) {
+        let value = this.#card_by_id(id).value
+        return Deck.VALUES.indexOf(value)
+    }
+
 }
 
 Deck.STACK = 'stack'
