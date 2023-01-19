@@ -1,2 +1,11 @@
-p Jij bent #{naam}
-p Er zijn momenteel #{count} spelers aan het wachten
+div#invoerVeld
+    label Voer ja naam in 
+    input#input()
+    button#Knop Submit
+p Er zijn momenteel #{aantal} spelers aan het wachten
+
+script.
+    document.getElementById("Knop").addEventListener("click", () => {
+        let naam = (document.getElementById("input").value)
+        ws.send(naam)
+    })

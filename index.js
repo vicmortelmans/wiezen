@@ -5,35 +5,55 @@ const ws_port = process.env.CODE_SERVER_PORT_WS || 3002
 const server_mode = process.env.CODE_SERVER_MODE || 'DEBUG'
 const WebSocketServer = require('ws')
 const wss = new WebSocketServer.Server({ port: ws_port })
-let clients = {}
-let aantal = 0 
-class players {
-    name
-    constructor(name){
-        this.name=name
+const pug = require("pug")
+const WACHTEND = "wachtend"
+const AANMELDEND = "aanmeldend"
+let clients = []
+let aantal = 0
+class Player {
+    ws
+    naam
+    status
+    constructor(ws) {
+        this.ws = ws
+        this.status = AANMELDEND
     }
 }
 
-
-
-
-
 wss.on("connection", ws => {
+    let player = new Player(ws)
+    clients.push(player)
+    let message = {}
+    message.htmlFragment = pug.renderFile("views/aanmelden.pug", { aantal: aantal })
+    message.id = "content"
+    ws.send(JSON.stringify(message))
     ws.on("message", data => {
-        aantal= aantal+1
-        clients[data]=ws
-        message = {} 
-        message.htmlFragment= pug.render("aanmelden"), {naam: data, count: aantal}
-        message.id= "aanmelden"
-        ws.send(JSON.stringify(message))
+        aantal = aantal + 1
+        player.naam = data
+        player.status = WACHTEND
+        for (const p of clients) {
+            let message = {}
+            if (p.status === WACHTEND) {
+                message.htmlFragment = pug.renderFile("views/wachtend.pug", {
+                    aantal: aantal,
+                    naam: p.naam,
+                    clients: clients
+                })
+            }
+            else if (p.status === AANMELDEND) {
+                message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
+                    aantal: aantal
+                })
+            }
+            message.id = "content"
+            p.ws.send(JSON.stringify(message))
+        }
     })
 
-
-
     ws.on("close", () => {
-        for(const [key, value] of Object.entries(clients)) {
-            if (ws === value){
-                aantal= aantal-1
+        for (const [key, value] of Object.entries(clients)) {
+            if (ws === value) {
+                aantal = aantal - 1
                 delete clients[key]
             }
         }
@@ -56,5 +76,5 @@ app.get("/", (req, res) => {
 app.use(express.static("public"))
 
 app.listen(http_port, () => {
-console.log(`Example app listening on port ${http_port}`)
+    console.log(`Example app listening on port ${http_port}`)
 })
