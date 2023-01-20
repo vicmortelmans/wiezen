@@ -357,7 +357,7 @@ while (true) {
 
             // let the minimax algorithm choose a card
             // during this process, the game tree is filled in to a certain depth
-            let [card_id, eval] = minimax_player(game_tree, 3, -999, 999, play_state.player)
+            let [card_id, eval] = minimax_player(game_tree, 2, -999, 999, play_state.player)
 
             console.log(`Table: ${colored(play_state.cards_on_table).toString()}`)
             console.log(`Hand of ${play_state.player}: ${colored(play_state.hands[play_state.player]).toString()}`)
