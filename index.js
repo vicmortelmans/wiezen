@@ -1,10 +1,9 @@
 const express = require("express")
 const app = express()
 const http_port = process.env.CODE_SERVER_PORT_HTTP || 3000
-const ws_port = process.env.CODE_SERVER_PORT_WS || 3002
-const server_mode = process.env.CODE_SERVER_MODE || 'DEBUG'
-const WebSocketServer = require('ws')
-const wss = new WebSocketServer.Server({ port: ws_port })
+const ws_port = process.env.CODE_SERVER_PORT_WS || 3001
+const server_mode = process.env.CODE_SERVER_MODE || 'DEPLOY'
+const host = '127.0.0.1'
 const pug = require("pug")
 const WACHTEND = "wachtend"
 const AANMELDEND = "aanmeldend"
@@ -20,6 +19,11 @@ class Player {
     }
 }
 
+const WebSocketServer = require('ws')
+const wss = new WebSocketServer.Server({
+    port: ws_port,
+    host: host
+})
 wss.on("connection", ws => {
     let player = new Player(ws)
     clients.push(player)
@@ -68,13 +72,13 @@ app.set("view engine", "pug");
 
 app.get("/", (req, res) => {
     res.render("home", {
-        ws_port_suffix: server_mode === 'DEBUG' ? '/proxy/' : ':',
+        ws_port_suffix: '/proxy/',
         ws_port: ws_port
     });
 })
 
 app.use(express.static("public"))
 
-app.listen(http_port, () => {
+app.listen(http_port, host, () => {
     console.log(`Example app listening on port ${http_port}`)
 })

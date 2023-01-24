@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "debug": "nodemon --inspect index.js",
-    "build-docs": "jsdoc wiezen.js"
+    "build-docs": "jsdoc wiezen.js",
+    "deploy": "pm2 restart index"
   },
   "repository": {
     "type": "git",
