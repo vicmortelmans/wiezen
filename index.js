@@ -9,6 +9,9 @@ const WACHTEND = "wachtend"
 const AANMELDEND = "aanmeldend"
 const SPELEND = "spelend"
 const GEKICKT = "gekickt"
+const SPEL_AANMELDEND = "spel_aanmelden"
+const SPEL_SPELEND = "spelend"
+const SPEL_BIEDEND = "biedend"
 let clients = []
 let aantal = 0
 class Player {
@@ -25,7 +28,7 @@ const wss = new WebSocketServer.Server({
     port: ws_port,
     host: host
 })
-
+let global_status = SPEL_AANMELDEND
 function scherm_wachtend_of_aanmeldend_sturen() {
     for (const p of clients) {
         let message = {}
@@ -53,6 +56,57 @@ function scherm_wachtend_of_aanmeldend_sturen() {
         p.ws.send(JSON.stringify(message))
     }
 }
+function message_player_giving_name(player, data, ws){
+    if (aantal === 4) {
+        player.status = GEKICKT
+        scherm_wachtend_of_aanmeldend_sturen()
+        return
+    }
+    let naam = data.toString().trim()
+    if (naam === "") {
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
+            aantal: aantal,
+            message: "Er is geen naam ingevoerd."
+        })
+        message.id = "content"
+        ws.send(JSON.stringify(message))
+        return
+    }
+    let i
+    for (i in clients) {
+        if (naam === clients[i].naam) {
+            //foutmelding geven
+            let message = {}
+            message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
+                aantal: aantal,
+                message: "Deze naam is al in gebruik."
+            })
+            message.id = "content"
+            ws.send(JSON.stringify(message))
+            return
+        }
+    }
+    aantal = aantal + 1
+    player.naam = naam
+    if (aantal === 4) {
+        for (let p of clients) {
+            if (p.status === WACHTEND) {
+                p.status = SPELEND
+            }
+            if (p.status === AANMELDEND){
+                p.status = GEKICKT
+            }
+        }
+        player.status = SPELEND
+        global_status = SPEL_BIEDEND
+
+    }
+    else if (aantal < 4) {
+        player.status = WACHTEND
+    }
+    scherm_wachtend_of_aanmeldend_sturen()
+}
 wss.on("connection", ws => {
     let player = new Player(ws)
     clients.push(player)
@@ -66,52 +120,24 @@ wss.on("connection", ws => {
     message.id = "content"
     ws.send(JSON.stringify(message))
     ws.on("message", data => {
-        if (aantal === 4) {
-            player.status = GEKICKT
-            scherm_wachtend_of_aanmeldend_sturen()
-            return
+        if (global_status = SPEL_AANMELDEND){
+            message_player_giving_name(player, data, ws)
         }
-        let naam = data.toString().trim()
-        if (naam === "") {
-            let message = {}
-            message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
-                aantal: aantal,
-                message: "Er is geen naam ingevoerd."
-            })
-            message.id = "content"
-            ws.send(JSON.stringify(message))
-            return
-        }
-        let i
-        for (i in clients) {
-            if (naam === clients[i].naam) {
-                //foutmelding geven
-                let message = {}
-                message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
-                    aantal: aantal,
-                    message: "Deze naam is al in gebruik."
-                })
-                message.id = "content"
-                ws.send(JSON.stringify(message))
-                return
-            }
-        }
-        aantal = aantal + 1
-        player.naam = naam
-        if (aantal === 4) {
-            for (let p of clients) {
-                if (p.status === WACHTEND) {
-                    p.status = SPELEND
+        else if (global_status === SPEL_BIEDEND){
+            for (i in clients){
+                if (clients[i].status === SPELEND){
+                    //nieuwe functie
                 }
-            }
-            player.status = SPELEND
+                    else {
+                        message = {}
+                        message.htmlFragment = pug.renderFile("views/gekick.pug")
+                        message.id = "content"
+                        p.ws.send(JSON.stringify(message))
+                    }
         }
-        else if (aantal < 4) {
-            player.status = WACHTEND
-        }
-        scherm_wachtend_of_aanmeldend_sturen()
-
+    }
     })
+
 
     ws.on("close", () => {
         let i
