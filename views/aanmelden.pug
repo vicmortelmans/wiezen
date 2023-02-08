@@ -1,12 +1,16 @@
 div#invoerVeld
-    label Voer ja naam in 
+    label Voer je naam in 
     input#input()
     button#Knop Submit
 p Er zijn momenteel #{aantal} spelers aan het wachten
-
+p #{message}
 script.
     document.getElementById("Knop").addEventListener("click", () => {
+        update = true
         let naam = (document.getElementById("input").value)
         ws.send(naam)
+    })
+    document.getElementById("input").addEventListener("change", () => {
+        update = false
     })
     //@ sourceURL=aanmelden.js
