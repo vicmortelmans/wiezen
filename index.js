@@ -29,7 +29,7 @@ const wss = new WebSocketServer.Server({
     host: host
 })
 let global_status = SPEL_AANMELDEND
-function scherm_wachtend_of_aanmeldend_sturen() {
+function scherm_sturen() {
     for (const p of clients) {
         let message = {}
         if (p.status === WACHTEND) {
@@ -59,7 +59,7 @@ function scherm_wachtend_of_aanmeldend_sturen() {
 function message_player_giving_name(player, data, ws){
     if (aantal === 4) {
         player.status = GEKICKT
-        scherm_wachtend_of_aanmeldend_sturen()
+        scherm_sturen()
         return
     }
     let naam = data.toString().trim()
@@ -98,21 +98,21 @@ function message_player_giving_name(player, data, ws){
                 p.status = GEKICKT
             }
         }
-        player.status = SPELEND
+        player.status = SPELEND //This is the 4th player with status AANMELDEND before
         global_status = SPEL_BIEDEND
 
     }
     else if (aantal < 4) {
         player.status = WACHTEND
     }
-    scherm_wachtend_of_aanmeldend_sturen()
+    scherm_sturen()
 }
 wss.on("connection", ws => {
     let player = new Player(ws)
     clients.push(player)
     if (aantal === 4) {
         player.status = GEKICKT
-        scherm_wachtend_of_aanmeldend_sturen()
+        scherm_sturen()
         return
     }
     let message = {}
@@ -126,7 +126,7 @@ wss.on("connection", ws => {
         else if (global_status === SPEL_BIEDEND){
             for (i in clients){
                 if (clients[i].status === SPELEND){
-                    //nieuwe functie
+                    // functie
                 }
                     else {
                         message = {}
@@ -163,7 +163,7 @@ wss.on("connection", ws => {
         }
         delete clients[i]
         clients = clients.filter(x => x) //remove empty slots
-        scherm_wachtend_of_aanmeldend_sturen()
+        scherm_sturen()
     })
     ws.onerror = () => {
         console.log("Some error occurred")
