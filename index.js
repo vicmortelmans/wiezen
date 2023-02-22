@@ -1,5 +1,6 @@
 const express = require("express")
 const app = express()
+const Wiezen = require("./wiezen")
 const http_port = process.env.CODE_SERVER_PORT_HTTP || 3000
 const ws_port = process.env.CODE_SERVER_PORT_WS || 3001
 const server_mode = process.env.CODE_SERVER_MODE || 'DEPLOY'
@@ -14,6 +15,8 @@ const SPEL_SPELEND = "spelend"
 const SPEL_BIEDEND = "biedend"
 let clients = []
 let aantal = 0
+let bidding_state = {}
+let playerNames = []
 class Player {
     ws
     naam
@@ -45,8 +48,18 @@ function scherm_sturen() {
             })
         }
         else if (p.status === SPELEND) {
+            let scoreFactor
+            if(bidding_state.score_factor=== undefined){
+                scoreFactor = 1
+            }
+            else {
+                scoreFactor = bidding_state.score_factor
+            }
             message.htmlFragment = pug.renderFile("views/starten.pug", {
-                clients: clients.filter(p => p.naam)
+                scoreFactor: scoreFactor,
+                speler1: playerNames[0],
+                speler2: playerNames[1]
+
             })
         }
         else if (p.status === GEKICKT) {
@@ -100,7 +113,17 @@ function message_player_giving_name(player, data, ws){
         }
         player.status = SPELEND //This is the 4th player with status AANMELDEND before
         global_status = SPEL_BIEDEND
-
+        playerNames = []
+        for (let p of clients) {
+            if (p.status===SPELEND){
+                playerNames.push(p.naam)
+            }
+        }
+        let wiezen = new Wiezen(playerNames)
+        wiezen.cut()
+        wiezen.deal()
+        bidding_state = wiezen.initialize_bid()
+        bidding_state = wiezen.bid_request(bidding_state)
     }
     else if (aantal < 4) {
         player.status = WACHTEND

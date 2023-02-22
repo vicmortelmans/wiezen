@@ -1,6 +1,8 @@
 body{
     background-color: rgba(23, 91, 23, 0.886);
+    margin: 0px;
 }
+/*AANMELDEN*/
 #invoerVeld{
     text-align: center;
     padding-top: 40vh;
@@ -8,9 +10,13 @@ body{
 }
 #input{
     height: 4vh;
+    border-radius: 5px;
 }
 #Knop{
     height: 5vh;
+    background-color: rgba(20, 111, 20, 0.886);
+    margin-left: 15px;
+    border-radius: 5px;
 }
 #AantalWachtend{
     text-align: center;
@@ -18,7 +24,7 @@ body{
     font-size: 3vh;
 }
 
-
+/*WACHTEND*/
 #Wachtend{
     text-align: center;
 }
@@ -32,9 +38,10 @@ body{
 }
 #LijstWachtende {
     font-size: 5vh;
+    list-style: none;
 }
 
-
+/*GEKICKT*/
 #Gekickt{
     text-align: center;
     padding-top: 15vh;
@@ -48,3 +55,44 @@ body{
     height: 40vh;
     width: 40vh;
 }
+
+
+.container {
+    display: grid;
+    gap: 20px;
+    height: 100vh;
+  
+    grid-template-areas: 
+    "A B C D E"
+    "F F F F F"
+    "G G G G G";
+  }
+
+  #Speler1{
+    grid-area: A;
+    background-color: aliceblue;
+  }
+  #Speler2{
+    grid-area: B;
+    background-color: rgb(4, 107, 197);
+  }
+  #ScoreMultiplier{
+    grid-area: C;
+    background-color: chartreuse;
+  }
+  #Speler3{
+    grid-area: D;
+    background-color: rgb(102, 22, 8);
+  }
+  #Speler4{
+    grid-area: E;
+    background-color: rgb(23, 194, 157);
+  }
+  #BidOptions {
+    grid-area: F;
+    background-color: blueviolet;
+  }
+  #Cards {
+    grid-area: G;
+    background-color: bisque;
+  }
