@@ -1,0 +1,50 @@
+body{
+    background-color: rgba(23, 91, 23, 0.886);
+}
+#invoerVeld{
+    text-align: center;
+    padding-top: 40vh;
+    font-size: 5vh;
+}
+#input{
+    height: 4vh;
+}
+#Knop{
+    height: 5vh;
+}
+#AantalWachtend{
+    text-align: center;
+    padding-top: 7vh;
+    font-size: 3vh;
+}
+
+
+#Wachtend{
+    text-align: center;
+}
+#NaamWachtend{
+    font-size: 15vh;
+    padding-top: 15vh;
+}
+#AantalWachtende{
+    font-size: 5vh;
+    padding-top: 10vh;
+}
+#LijstWachtende {
+    font-size: 5vh;
+}
+
+
+#Gekickt{
+    text-align: center;
+    padding-top: 15vh;
+    font-size: 10vh;
+}
+#SadEmoji{
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 10vh;
+    height: 40vh;
+    width: 40vh;
+}

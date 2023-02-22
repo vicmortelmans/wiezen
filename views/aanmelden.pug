@@ -1,9 +1,10 @@
-div#invoerVeld
-    label Voer je naam in 
-    input#input()
-    button#Knop Submit
-p Er zijn momenteel #{aantal} spelers aan het wachten
-p #{message}
+div#AANMELDEN
+    div#invoerVeld
+        label#Naamvraag Voer je naam in 
+        input#input()
+        button#Knop Submit
+    p#AantalWachtend Er zijn momenteel #{aantal} spelers aan het wachten
+    p#AantalWachtend #{message}
 script.
     document.getElementById("Knop").addEventListener("click", () => {
         update = true

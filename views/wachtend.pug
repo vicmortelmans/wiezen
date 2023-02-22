@@ -1,5 +1,6 @@
-div #{naam}
-div Er zijn #{aantal} spelers wachtende
-ul 
-    each p in clients
-        li= p.naam
+div#Wachtend
+    div#NaamWachtend #{naam}
+    div#AantalWachtende Er zijn #{aantal} spelers wachtende
+    ul#LijstWachtende 
+        each p in clients
+            li= p.naam
