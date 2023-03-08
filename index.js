@@ -54,12 +54,19 @@ function scherm_sturen() {
             }
             else {
                 scoreFactor = bidding_state.score_factor
+            } 
+            let bidopties = []
+            if(bidding_state.player === p.naam){
+                bidopties = bidding_state.games_open_mee
             }
             message.htmlFragment = pug.renderFile("views/starten.pug", {
                 scoreFactor: scoreFactor,
                 speler1: playerNames[0],
-                speler2: playerNames[1]
-
+                speler2: playerNames[1],
+                speler3: playerNames[2],
+                speler4: playerNames[3],
+                bidopties: bidopties
+                                                                                    
             })
         }
         else if (p.status === GEKICKT) {
@@ -124,6 +131,7 @@ function message_player_giving_name(player, data, ws){
         wiezen.deal()
         bidding_state = wiezen.initialize_bid()
         bidding_state = wiezen.bid_request(bidding_state)
+
     }
     else if (aantal < 4) {
         player.status = WACHTEND
