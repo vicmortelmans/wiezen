@@ -56,11 +56,12 @@ body{
     width: 40vh;
 }
 
-
+/*Spelend*/
 .container {
     display: grid;
     gap: 20px;
     height: 100vh;
+    
   
     grid-template-areas: 
     "A B C D E"
@@ -71,28 +72,88 @@ body{
   #Speler1{
     grid-area: A;
     background-color: aliceblue;
+    place-self: center;
   }
   #Speler2{
     grid-area: B;
     background-color: rgb(4, 107, 197);
+    place-self: center;
   }
   #ScoreMultiplier{
     grid-area: C;
     background-color: chartreuse;
+    place-self: center;
   }
   #Speler3{
     grid-area: D;
     background-color: rgb(102, 22, 8);
+    place-self: center;
   }
   #Speler4{
     grid-area: E;
     background-color: rgb(23, 194, 157);
+    place-self: center;
   }
   #BidOptions {
     grid-area: F;
     background-color: blueviolet;
+    padding-left: 4vh;
+    padding-right: 4vh;
+    padding-top: 10vh;
+    padding-bottom: 10vh;
+    place-self: center stretch;
+    text-align: center;
   }
   #Cards {
     grid-area: G;
     background-color: bisque;
+  }
+  .bidOptieKnoppen{
+    border-radius: 25px;
+    height: 8vh;
+    width: 22vh;
+    margin: 1vh;
+  }
+  .container_spelend{
+    display: grid;
+    gap: 20px;
+    height: 100vh;
+    grid-template-areas: 
+    "A B C"
+    "D E F"
+    "D G F"
+    "H H H"
+    ;
+  }
+  #spelSpeler1 {
+    grid-area: A;
+    background-color: paleturquoise;
+  }
+  #spelSpeler2 {
+    grid-area: B;
+    background-color: aqua;
+  }
+  #spelSpeler3 {
+    grid-area: C;
+    background-color: rgb(0, 255, 0);
+  }
+  #kaartenSpeler1 {
+    grid-area: D;
+    background-color: yellow;
+  }
+  #kaartenSpeler2 {
+    grid-area: E;
+    background-color: rgb(255, 150, 213);
+  }
+  #kaartenSpeler3 {
+    grid-area: F;
+    background-color: rgb(255, 171, 68);
+  }
+  #tafelKaarten {
+    grid-area: G;
+    background-color: rgb(227, 40, 40);
+  }
+  #eigenKaarten {
+    grid-area: H;
+    background-color: azure;
   }

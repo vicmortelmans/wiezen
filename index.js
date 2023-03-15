@@ -8,15 +8,18 @@ const host = '127.0.0.1'
 const pug = require("pug")
 const WACHTEND = "wachtend"
 const AANMELDEND = "aanmeldend"
-const SPELEND = "spelend"
+const BIEDEND = "biedend"
 const GEKICKT = "gekickt"
+const SPELEND = "spelend"
 const SPEL_AANMELDEND = "spel_aanmelden"
 const SPEL_SPELEND = "spelend"
 const SPEL_BIEDEND = "biedend"
+let wiezen = {}
 let clients = []
 let aantal = 0
 let bidding_state = {}
 let playerNames = []
+let play_state = {}
 class Player {
     ws
     naam
@@ -32,6 +35,14 @@ const wss = new WebSocketServer.Server({
     host: host
 })
 let global_status = SPEL_AANMELDEND
+function rotate_players(first_player, list) {
+    // returns a COPY of the array of players (or custom list, if provided) with 'first_player' first
+    let list2 = [...list]
+    while (list2[0] != first_player) {
+        list2.push(list2.shift())
+    }
+    return list2
+}
 function scherm_sturen() {
     for (const p of clients) {
         let message = {}
@@ -47,16 +58,16 @@ function scherm_sturen() {
                 aantal: aantal
             })
         }
-        else if (p.status === SPELEND) {
+        else if (p.status === BIEDEND) {
             let scoreFactor
-            if(bidding_state.score_factor=== undefined){
+            if (bidding_state.score_factor === undefined) {
                 scoreFactor = 1
             }
             else {
                 scoreFactor = bidding_state.score_factor
-            } 
+            }
             let bidopties = []
-            if(bidding_state.player === p.naam){
+            if (bidding_state.player === p.naam) {
                 bidopties = bidding_state.games_open_mee
             }
             message.htmlFragment = pug.renderFile("views/starten.pug", {
@@ -66,17 +77,25 @@ function scherm_sturen() {
                 speler3: playerNames[2],
                 speler4: playerNames[3],
                 bidopties: bidopties
-                                                                                    
+                
             })
         }
         else if (p.status === GEKICKT) {
             message.htmlFragment = pug.renderFile("views/gekick.pug")
         }
+        else if (p.status === SPELEND){
+            playerNamesSpelend = rotate_players(p.naam, playerNames )
+            message.htmlFragment = pug.renderFile("views/spelend.pug", {
+                speler1: playerNamesSpelend[1],
+                speler2: playerNamesSpelend[2],
+                speler3: playerNamesSpelend[3],
+            })
+        }
         message.id = "content"
         p.ws.send(JSON.stringify(message))
     }
 }
-function message_player_giving_name(player, data, ws){
+function message_player_giving_name(player, data, ws) {
     if (aantal === 4) {
         player.status = GEKICKT
         scherm_sturen()
@@ -112,21 +131,21 @@ function message_player_giving_name(player, data, ws){
     if (aantal === 4) {
         for (let p of clients) {
             if (p.status === WACHTEND) {
-                p.status = SPELEND
+                p.status = BIEDEND
             }
-            if (p.status === AANMELDEND){
+            if (p.status === AANMELDEND) {
                 p.status = GEKICKT
             }
         }
-        player.status = SPELEND //This is the 4th player with status AANMELDEND before
+        player.status = BIEDEND //This is the 4th player with status AANMELDEND before
         global_status = SPEL_BIEDEND
         playerNames = []
         for (let p of clients) {
-            if (p.status===SPELEND){
+            if (p.status === BIEDEND) {
                 playerNames.push(p.naam)
             }
         }
-        let wiezen = new Wiezen(playerNames)
+        wiezen = new Wiezen(playerNames)
         wiezen.cut()
         wiezen.deal()
         bidding_state = wiezen.initialize_bid()
@@ -151,22 +170,39 @@ wss.on("connection", ws => {
     message.id = "content"
     ws.send(JSON.stringify(message))
     ws.on("message", data => {
-        if (global_status = SPEL_AANMELDEND){
+        if (global_status === SPEL_AANMELDEND) {
             message_player_giving_name(player, data, ws)
         }
-        else if (global_status === SPEL_BIEDEND){
-            for (i in clients){
-                if (clients[i].status === SPELEND){
-                    // functie
-                }
-                    else {
-                        message = {}
-                        message.htmlFragment = pug.renderFile("views/gekick.pug")
-                        message.id = "content"
-                        p.ws.send(JSON.stringify(message))
+        else if (global_status === SPEL_BIEDEND) {
+            let messageFromBiddingPlayer = true
+            for (i in clients) {
+                if (clients[i].status != BIEDEND) {
+                    message = {}
+                    message.htmlFragment = pug.renderFile("views/gekick.pug")
+                    message.id = "content"
+                    clients[i].ws.send(JSON.stringify(message))
+                    if (clients[i].ws === ws) {
+                        messageFromBiddingPlayer = false
                     }
+                }
+            }
+            if (messageFromBiddingPlayer) {
+                bidding_state = wiezen.bid(data.toString())
+                if(bidding_state.players_bidding.length === 0){
+                    play_state = wiezen.initialize_play(bidding_state)
+                    play_state = wiezen.play_request(play_state)
+                    global_status = SPEL_SPELEND
+                    for(let p of clients){
+                        p.status = SPELEND
+                    }
+                    
+                }
+                else{
+                bidding_state = wiezen.bid_request(bidding_state)
+                }
+                scherm_sturen()
+            }
         }
-    }
     })
 
 
@@ -177,11 +213,11 @@ wss.on("connection", ws => {
                 if (clients[i].status === WACHTEND) {
                     aantal = aantal - 1
                 }
-                else if (clients[i].status === SPELEND) {
+                else if (clients[i].status === BIEDEND) {
                     aantal = aantal - 1
                     let j
                     for (j in clients) {
-                        if (clients[j].status === SPELEND) {
+                        if (clients[j].status === BIEDEND) {
                             clients[j].status = WACHTEND
                         }
                         else if (clients[j].status === GEKICKT) {

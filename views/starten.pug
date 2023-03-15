@@ -12,4 +12,11 @@ div.container
     #BidOptions 
          each b in bidopties
             button.bidOptieKnoppen #{b}
-    #Cards 
+    #Cards
+script.
+    document.querySelectorAll('.bidOptieKnoppen').forEach(item => {
+        item.addEventListener('click', function () {
+            ws.send(this.textContent)
+        })
+    })
+    //@ sourceURL=starten.js
