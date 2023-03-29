@@ -157,3 +157,12 @@ body{
     grid-area: H;
     background-color: azure;
   }
+  .card {
+    display: inline-block;
+    margin-right: -6vw;
+    width: 12vw;
+    aspect-ratio: 3 / 5;
+    background-color: white;
+    border: solid black 1px;
+    font-size: 30vh;
+  }

@@ -10,3 +10,13 @@ div.container_spelend
     #kaartenSpeler3 
     #tafelKaarten 
     #eigenKaarten 
+        each c in cards
+            div.card(class=c.clickable && "clickable", data-card = c.card) #{c.unicode}
+            
+script.
+    document.querySelectorAll('.clickable').forEach(item => {
+        item.addEventListener('click', function () {
+            ws.send(this.dataset['card'])
+        })
+    })
+    //@ sourceURL=starten.js

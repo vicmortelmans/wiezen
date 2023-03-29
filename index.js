@@ -14,6 +14,10 @@ const SPELEND = "spelend"
 const SPEL_AANMELDEND = "spel_aanmelden"
 const SPEL_SPELEND = "spelend"
 const SPEL_BIEDEND = "biedend"
+const cardsLookup = {'♥A': '🂱', '♥2': '🂲', '♥3' :'🂳', '♥4': '🂴', '♥5':'🂵', '♥6':'🂶', '♥7': '🂷', '♥8': '🂸', '♥9': '🂹', '♥10':'🂺', '♥J':'🂻', '♥Q': '🂽', '♥K': '🂾',
+'♦A': '🃁', '♦2': '🃂', '♦3' :'🃃', '♦4': '🃄', '♦5':'🃅', '♦6':'🃆', '♦7': '🃇', '♦8': '🃈', '♦9': '🃉', '♦10':'🃊', '♦J':'🃋', '♦Q': '🃍', '♦K': '🃎', 
+'♠A': '🂡', '♠2': '🂢', '♠3' :'🂣', '♠4': '🂤', '♠5':'🂥', '♠6':'🂦', '♠7': '🂧', '♠8': '🂨', '♠9': '🂩', '♠10':'🂪', '♠J':'🂫', '♠Q': '🂭', '♠K': '🂮',
+'♣A': '🃑', '♣2': '🃒', '♣3' :'🃓', '♣4': '🃔', '♣5':'🃕', '♣6':'🃖', '♣7': '🃗', '♣8': '🃘', '♣9': '🃙', '♣10':'🃚', '♣J':'🃛', '♣Q': '🃝', '♣K': '🃞'}
 let wiezen = {}
 let clients = []
 let aantal = 0
@@ -89,6 +93,14 @@ function scherm_sturen() {
                 speler1: playerNamesSpelend[1],
                 speler2: playerNamesSpelend[2],
                 speler3: playerNamesSpelend[3],
+                cards: play_state.hands[p.naam].map(c=> {
+                    let clickable= false
+                    let c2 = c.replace("*", "")
+                    if (play_state.playable_cards.includes(c)){
+                        clickable = true
+                    }
+                    return {unicode: cardsLookup[c2], clickable, card: c}
+                })
             })
         }
         message.id = "content"
