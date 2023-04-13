@@ -6,14 +6,10 @@ const ws_port = process.env.CODE_SERVER_PORT_WS || 3001
 const server_mode = process.env.CODE_SERVER_MODE || 'DEPLOY'
 const host = '127.0.0.1'
 const pug = require("pug")
-const WACHTEND = "wachtend"
-const AANMELDEND = "aanmeldend"
-const BIEDEND = "biedend"
-const GEKICKT = "gekickt"
-const SPELEND = "spelend"
-const SPEL_AANMELDEND = "spel_aanmelden"
-const SPEL_SPELEND = "spelend"
-const SPEL_BIEDEND = "biedend"
+const WAITING = "waiting"
+const REGISTERING = "registering"
+const BIDDING = "bidding"
+const PLAYING = "playing"
 const cardsLookup = {'♥A': '🂱', '♥2': '🂲', '♥3' :'🂳', '♥4': '🂴', '♥5':'🂵', '♥6':'🂶', '♥7': '🂷', '♥8': '🂸', '♥9': '🂹', '♥10':'🂺', '♥J':'🂻', '♥Q': '🂽', '♥K': '🂾',
 '♦A': '🃁', '♦2': '🃂', '♦3' :'🃃', '♦4': '🃄', '♦5':'🃅', '♦6':'🃆', '♦7': '🃇', '♦8': '🃈', '♦9': '🃉', '♦10':'🃊', '♦J':'🃋', '♦Q': '🃍', '♦K': '🃎', 
 '♠A': '🂡', '♠2': '🂢', '♠3' :'🂣', '♠4': '🂤', '♠5':'🂥', '♠6':'🂦', '♠7': '🂧', '♠8': '🂨', '♠9': '🂩', '♠10':'🂪', '♠J':'🂫', '♠Q': '🂭', '♠K': '🂮',
@@ -26,19 +22,148 @@ let playerNames = []
 let play_state = {}
 class Player {
     ws
-    naam
-    status
+    name
+    state
+    pub
+    table
     constructor(ws) {
         this.ws = ws
-        this.status = AANMELDEND
+    }
+    set_state (state){
+        this.state = state
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
+    }
+    set_pub (pub){
+        this.pub = pub
+    }
+    set_table (table){
+        this.table = table
+    }
+    set_name (name){
+        this.name = name
+        pub.register(this)
+    }
+    update_waiting_players (waiting_players){
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/wachtend.pug", {
+            aantal: waiting_players.length,
+            naam: this.name,
+            clients: waiting_players.filter(p => p.naam)
+        })
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
+    }
+    update_bid_request (bidding_state, score, players){
+        let playerNames = players.map(p => p.name)
+        let message = {}
+        let scoreFactor
+        if (bidding_state.score_factor === undefined) {
+            scoreFactor = 1
+        }
+        else {
+            scoreFactor = bidding_state.score_factor
+        }
+        let bidopties = []
+        if (bidding_state.player === this.name) {
+            bidopties = bidding_state.games_open_mee
+        }
+        message.htmlFragment = pug.renderFile("views/starten.pug", {
+            scoreFactor: scoreFactor,
+            speler1: playerNames[0],
+            speler2: playerNames[1],
+            speler3: playerNames[2],
+            speler4: playerNames[3],
+            bidopties: bidopties
+        })
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
+        
+    }
+    bid (bid){
+
+    }
+    update_play_request (play_request){
+        
+    }
+    play (card){
+
     }
 }
+class pub{
+    registering_players
+    waiting_players
+    constructor (){
+        this.registering_players = []
+        this.waiting_players = []
+    }
+    add_player (player){
+        this.registering_players.push(player)
+        player.set_state(REGISTERING)
+        player.set_pub(this)
+    }
+    register (player){
+        this.registering_players = this.registering_players.filter(p => player != p)
+        let i = 1
+        while(true){
+            if (this.registering_players.map ( p => p.name).includes(player.name)){
+                player.name = player.name + str(i)
+            }
+            else {
+                break
+            }
+            
+        }
+        this.waiting_players.push(player)
+        player.set_state(WAITING)
+        if (this.waiting_players.length < 4){
+            for (w of this.waiting_players){
+                w.update_waiting_players(this.waiting_players)
+            }
+        }
+        else {
+            table = new table(this.waiting_players)
+            this.waiting_players = []
+            table.start_game()
+        }
+    }
+}
+class table{
+    players
+    wiezen
+    bidding_state
+    play_state
+    constructor(players){
+        this.players = players
+        this.wiezen = new Wiezen(this.players.map (p => p.name))
+    }
+    start_game(){
+        this.wiezen.cut()
+        this.wiezen.deal()
+        this.bidding_state = this.wiezen.initialize_bid()
+        this.bidding_state = this.wiezen.bid_request(this.bidding_state)
+        for (p of this.players){
+            p.set_state(BIDDING)
+            p.set_table(this)
+            p.update_bid_request(this.bid_request, {}, this.players)//TO DO : IMPLEMENT SCORE!!!
+        }
+
+    }
+    bid (bid){
+
+    }
+    play (card){
+       
+    }
+}
+
 const WebSocketServer = require('ws')
 const wss = new WebSocketServer.Server({
     port: ws_port,
     host: host
 })
-let global_status = SPEL_AANMELDEND
 function rotate_players(first_player, list) {
     // returns a COPY of the array of players (or custom list, if provided) with 'first_player' first
     let list2 = [...list]
@@ -59,7 +184,6 @@ function scherm_sturen() {
         }
         else if (p.status === AANMELDEND) {
             message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
-                aantal: aantal
             })
         }
         else if (p.status === BIEDEND) {
@@ -81,7 +205,6 @@ function scherm_sturen() {
                 speler3: playerNames[2],
                 speler4: playerNames[3],
                 bidopties: bidopties
-                
             })
         }
         else if (p.status === GEKICKT) {
@@ -169,20 +292,14 @@ function message_player_giving_name(player, data, ws) {
     }
     scherm_sturen()
 }
+const pub = new Pub()
 wss.on("connection", ws => {
     let player = new Player(ws)
-    clients.push(player)
-    if (aantal === 4) {
-        player.status = GEKICKT
-        scherm_sturen()
-        return
-    }
-    let message = {}
-    message.htmlFragment = pug.renderFile("views/aanmelden.pug", { aantal: aantal })
-    message.id = "content"
-    ws.send(JSON.stringify(message))
+    pub.add_player(player)
     ws.on("message", data => {
-        if (global_status === SPEL_AANMELDEND) {
+        if (player.state === REGISTERING) {
+            let name = data.toString().trim()
+            player.set_name (name)
             message_player_giving_name(player, data, ws)
         }
         else if (global_status === SPEL_BIEDEND) {
