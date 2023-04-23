@@ -83,13 +83,30 @@ class Player {
         
     }
     bid (bid){
-
+        this.table.bid(bid)
     }
-    update_play_request (play_request){
+    update_play_request (play_request, players){
+        let playerNames = players.map(p => p.name)
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/spelend.pug", {
+            speler1: playerNames[0],
+            speler2: playerNames[1],
+            speler3: playerNames[2],
+            cards: play_state.hands[p.naam].map(c=> {
+                let clickable= false
+                let c2 = c.replace("*", "")
+                if (play_state.playable_cards.includes(c)){
+                    clickable = true
+                }
+                return {unicode: cardsLookup[c2], clickable, card: c}
+            })
+        })
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
         
     }
     play (card){
-
+        this.table.play(card) 
     }
 }
 class pub{
@@ -135,6 +152,7 @@ class table{
     wiezen
     bidding_state
     play_state
+    score
     constructor(players){
         this.players = players
         this.wiezen = new Wiezen(this.players.map (p => p.name))
@@ -149,14 +167,45 @@ class table{
             p.set_table(this)
             p.update_bid_request(this.bid_request, {}, this.players)//TO DO : IMPLEMENT SCORE!!!
         }
-
     }
     bid (bid){
-
+        this.bidding_state = this.wiezen.bid(bid)
+        this.bidding_state = this.wiezen.bid_request(this.bidding_state)
+        if (this.bidding_state.players_bidding.length > 0){
+            for (p in this.players){
+                p.update_bid_request(this.bid_request, {}, this.players)// TO DO: IMPLEMENT SCORE!!!
+            }
+        }
+        else {
+            this.play_state = this.wiezen.initialize_play()
+        }
+        if (this.play_state.game_playable){
+            this.play_state = this.wiezen.play_request(this.play_state)
+            for ( p in this.players){
+                p.set_state(PLAYING)
+                p.update_play_request(this.play_state, this.players )
+            }
+        }
+        else {
+            this.wiezen.new_game()
+            this.start_game()
+        }
     }
     play (card){
-       
+        this.play_state = this.wiezen.play(card)
+        this.play_state = this.wiezen.play_request(this.play_state)
+        if (!this.play_state.game_done){
+            for (p in this.players){
+                p.update_play_request(this.play_state, this.players)
+            }
+        }
+        else {
+            this.score = this.wiezen.calculate_score()
+            this.wiezen.new_game()
+            this.start_game()
+        }
     }
+    
 }
 
 const WebSocketServer = require('ws')
@@ -300,7 +349,14 @@ wss.on("connection", ws => {
         if (player.state === REGISTERING) {
             let name = data.toString().trim()
             player.set_name (name)
-            message_player_giving_name(player, data, ws)
+        }
+        else if (player_state === BIDDING){
+            let bid = data.toString().trim()
+            player.bid(bid)
+        }
+        else if (player_state === PLAYING){
+            let card = data.toString().trim()
+            player.play(card)
         }
         else if (global_status === SPEL_BIEDEND) {
             let messageFromBiddingPlayer = true
