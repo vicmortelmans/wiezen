@@ -84,6 +84,7 @@ class Wiezen {
             games_open_mee: null,
             players_bidding: [...this.players],  // /!\ not necessarily in right order yet !
             player: this.dealer,  // player after dealer is to bid first 
+            hands: this.deck.get_hands(),  // for output only
             count_bids: 0,
             score_factor: this.scorefactors[this.game_number]       
         }
