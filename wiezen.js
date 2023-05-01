@@ -288,7 +288,7 @@ class Wiezen {
         this.playing.player = this.playing.next_player
         this.playing.next_player = null
         // look at table cards to set playable 
-        if (this.playing.cards_on_table.length > 0 || this.playing.cards_on_table.length < 4) {
+        if (this.playing.cards_on_table.length > 0 && this.playing.cards_on_table.length < 4) {
             // only cards with same color as opening card are playable
             // if there are none, any card is playable
             let opening_card = this.playing.cards_on_table[0]
