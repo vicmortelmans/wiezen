@@ -238,6 +238,12 @@ class Table {
     }
     play(card) {
         this.play_state = this.wiezen.play(card)
+        if (this.play_state.cards_on_table.length === 4){
+            for (let p of this.players) {
+                p.update_play_request(this.play_state, this.players)
+            }
+            this.play_state= this.wiezen.collect_trick()
+        }
         this.play_state = this.wiezen.play_request(this.play_state)
         console.log(JSON.stringify(this.play_state, null, 2)+"\n\n")
         if (!this.play_state.game_done) {
