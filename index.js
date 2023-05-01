@@ -249,7 +249,9 @@ class Table {
             for (let p of this.players) {
                 p.update_play_request(this.play_state, this.players)
             }
-            clear_table()
+            if (clear_table_after_displaying_cards){
+            this.wiezen.clear_table()
+            }
         }
         else {
             this.score = this.wiezen.calculate_score()
