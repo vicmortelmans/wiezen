@@ -9,9 +9,12 @@ div.container_spelend
     #kaartenSpeler2 
     #kaartenSpeler3 
     #tafelKaarten 
-    #eigenKaarten 
+    #eigenKaarten
         each c in cards
             div.card(class=c.clickable && "clickable", data-card = c.card) #{c.unicode}
+    #cards_on_table
+        each c in cards_on_table
+            div.card_on_table #{c.unicode}
             
 script.
     document.querySelectorAll('.clickable').forEach(item => {

@@ -1,18 +1,25 @@
 div.container
     #Speler1
         p #{speler1}
+        p #{score.old_cumulative_score[speler1]} + #{score.score[speler1]} = #{score.new_cumulative_score[speler1]}
     #Speler2
         p #{speler2}
+        p #{score.old_cumulative_score[speler2]} + #{score.score[speler2]} = #{score.new_cumulative_score[speler2]}
     #ScoreMultiplier
         p#scoreMulti Score x#{scoreFactor} 
     #Speler3 
         p #{speler3}
+        p #{score.old_cumulative_score[speler3]} + #{score.score[speler3]} = #{score.new_cumulative_score[speler3]}
     #Speler4 
         p #{speler4}
+        p #{score.old_cumulative_score[speler4]} + #{score.score[speler4]} = #{score.new_cumulative_score[speler4]}
     #BidOptions 
          each b in bidopties
             button.bidOptieKnoppen #{b}
-    #Cards
+    #Cards 
+        each c in cards
+            div.card #{c.unicode}
+    
 script.
     document.querySelectorAll('.bidOptieKnoppen').forEach(item => {
         item.addEventListener('click', function () {

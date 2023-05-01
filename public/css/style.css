@@ -41,20 +41,7 @@ body{
     list-style: none;
 }
 
-/*GEKICKT*/
-#Gekickt{
-    text-align: center;
-    padding-top: 15vh;
-    font-size: 10vh;
-}
-#SadEmoji{
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    padding-top: 10vh;
-    height: 40vh;
-    width: 40vh;
-}
+
 
 /*Spelend*/
 .container {
@@ -149,7 +136,7 @@ body{
     grid-area: F;
     background-color: rgb(255, 171, 68);
   }
-  #tafelKaarten {
+  #cards_on_table {
     grid-area: G;
     background-color: rgb(227, 40, 40);
   }

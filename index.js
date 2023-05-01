@@ -72,7 +72,12 @@ class Player {
             speler2: playerNames[1],
             speler3: playerNames[2],
             speler4: playerNames[3],
-            bidopties: bidopties
+            bidopties: bidopties,
+            score : score,
+            cards: bidding_state.hands[this.name].map(c => {
+                let c2 = c.replace("*", "")
+                return { unicode: cardsLookup[c2], card: c }
+            })
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -81,20 +86,24 @@ class Player {
     bid(bid) {
         this.table.bid(bid)
     }
-    update_play_request(play_request, players) {
+    update_play_request(play_state, players) {
         let playerNames = players.map(p => p.name)
         let message = {}
         message.htmlFragment = pug.renderFile("views/spelend.pug", {
             speler1: playerNames[0],
             speler2: playerNames[1],
             speler3: playerNames[2],
-            cards: play_state.hands[p.naam].map(c => {
+            cards: play_state.hands[this.name].map(c => {
                 let clickable = false
                 let c2 = c.replace("*", "")
                 if (play_state.playable_cards.includes(c)) {
                     clickable = true
                 }
                 return { unicode: cardsLookup[c2], clickable, card: c }
+            }),
+            cards_on_table: play_state.cards_on_table.map(c => {
+                let c2 = c.replace("*", "")
+                return { unicode: cardsLookup[c2]}
             })
         })
         message.id = "content"
@@ -171,7 +180,7 @@ class Pub {
             }
         }
         else {
-            table = new table(this.waiting_players)
+            let table = new table(this.waiting_players)
             this.waiting_players = []
             table.start_game()
         }
@@ -186,6 +195,12 @@ class Table {
     constructor(players) {
         this.players = players
         this.wiezen = new Wiezen(this.players.map(p => p.name))
+        this.score = {score:{}, old_cumulative_score:{}, new_cumulative_score:{}}
+        for (let p of players){
+            this.score.score[p.name] = 0
+            this.score.old_cumulative_score[p.name] = 0
+            this.score.new_cumulative_score[p.name] = 0
+        }
     }
     start_game() {
         this.wiezen.cut()
@@ -195,7 +210,7 @@ class Table {
         for (let p of this.players) {
             p.set_state(BIDDING)
             p.set_table(this)
-            p.update_bid_request(this.bidding_state, {}, this.players)//TO DO : IMPLEMENT SCORE!!!
+            p.update_bid_request(this.bidding_state, this.score, this.players)//TO DO : IMPLEMENT SCORE!!!
         }
     }
     bid(bid) {
@@ -203,27 +218,28 @@ class Table {
         this.bidding_state = this.wiezen.bid_request(this.bidding_state)
         if (this.bidding_state.players_bidding.length > 0) {
             for (let p of this.players) {
-                p.update_bid_request(this.bidding_state, {}, this.players)// TO DO: IMPLEMENT SCORE!!!
+                p.update_bid_request(this.bidding_state, this.score, this.players)// TO DO: IMPLEMENT SCORE!!!
             }
         }
         else {
             this.play_state = this.wiezen.initialize_play()
-        }
-        if (this.play_state.game_playable) {
-            this.play_state = this.wiezen.play_request(this.play_state)
-            for (let p of this.players) {
-                p.set_state(PLAYING)
-                p.update_play_request(this.play_state, this.players)
+            if (this.play_state.game_playable) {
+                this.play_state = this.wiezen.play_request(this.play_state)
+                for (let p of this.players) {
+                    p.set_state(PLAYING)
+                    p.update_play_request(this.play_state, this.players)
+                }
             }
-        }
-        else {
-            this.wiezen.new_game()
-            this.start_game()
+            else {
+                this.wiezen.new_game()
+                this.start_game()
+            }
         }
     }
     play(card) {
         this.play_state = this.wiezen.play(card)
         this.play_state = this.wiezen.play_request(this.play_state)
+        console.log(JSON.stringify(this.play_state, null, 2)+"\n\n")
         if (!this.play_state.game_done) {
             for (let p of this.players) {
                 p.update_play_request(this.play_state, this.players)
