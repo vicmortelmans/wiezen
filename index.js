@@ -104,7 +104,11 @@ class Player {
             cards_on_table: play_state.cards_on_table.map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2]}
-            })
+            }),
+            trump: play_state.trump,
+            player_turn: play_state.player,
+            
+
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
