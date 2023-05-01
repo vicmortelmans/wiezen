@@ -339,10 +339,16 @@ class Wiezen {
         let winning_player = this.deck.get_hand(this.playing.winning_card)
         this.playing.next_player = winning_player
         this.playing.tricks_per_player[winning_player]++
-        this.playing.cards_on_table = []
         this.playing.winning_card = null
         this.playing.game_done = this.playing.count_tricks >= Wiezen.NUMBER_OF_TRICKS
         return this.playing
+    }
+
+    /**
+     * Only called after collect_trick and AFTER displaying cards towards the users
+     */
+    clear_table() {
+        this.playing.cards_on_table = []
     }
 
     /**
