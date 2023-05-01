@@ -317,7 +317,7 @@ class Wiezen {
      */
      play(card_id) {
         this.deck.play(card_id, this.playing.player)
-        this.playing.playable_cards = null
+        this.playing.playable_cards = []
         this.playing.cards_on_table.push(card_id)
         this.playing.hands = this.deck.get_hands()
         this.playing.winning_card = this.deck.evaluate_trick(this.playing.cards_on_table)
