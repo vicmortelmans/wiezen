@@ -80,6 +80,7 @@ while (true) {
                 console.log(`Trick won by ${wiezen.get_hand(play_state.winning_card)} (${colored([play_state.winning_card]).toString()}): ${colored(play_state.cards_on_table).toString()}`)
 
                 play_state = wiezen.collect_trick()
+                wiezen.clear_table()
 
                 for (const player of players) console.log(`Tricks won by ${player}: ${play_state.tricks_per_player[player]}`)
         
