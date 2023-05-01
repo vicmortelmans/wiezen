@@ -238,10 +238,9 @@ class Table {
     }
     play(card) {
         this.play_state = this.wiezen.play(card)
+        let clear_table_after_displaying_cards = false
         if (this.play_state.cards_on_table.length === 4){
-            for (let p of this.players) {
-                p.update_play_request(this.play_state, this.players)
-            }
+            clear_table_after_displaying_cards = true
             this.play_state= this.wiezen.collect_trick()
         }
         this.play_state = this.wiezen.play_request(this.play_state)
@@ -250,6 +249,7 @@ class Table {
             for (let p of this.players) {
                 p.update_play_request(this.play_state, this.players)
             }
+            clear_table()
         }
         else {
             this.score = this.wiezen.calculate_score()
