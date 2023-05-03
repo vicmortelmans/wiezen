@@ -31,6 +31,7 @@ class Player {
         message.htmlFragment = pug.renderFile("views/aanmelden.pug")
         message.id = "content"
         this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} AANMELDEN`)
     }
     set_pub(pub) {
         this.pub = pub
@@ -51,6 +52,7 @@ class Player {
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} WACHTEND`)
     }
     update_bid_request(bidding_state, score, players) {
         let playerNames = players.map(p => p.name)
@@ -81,6 +83,7 @@ class Player {
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} STARTEN`)
 
     }
     bid(bid) {
@@ -89,18 +92,26 @@ class Player {
     update_play_request(play_state, players) {
         let playerNames = players.map(p => p.name)
         let message = {}
-        message.htmlFragment = pug.renderFile("views/spelend.pug", {
-            speler1: playerNames[0],
-            speler2: playerNames[1],
-            speler3: playerNames[2],
-            cards: play_state.hands[this.name].map(c => {
+        let next_players = rotate_players(this.name, playerNames)
+        let cards 
+        if (this.name in play_state.hands){ 
+            cards = play_state.hands[this.name].map(c => {
                 let clickable = false
                 let c2 = c.replace("*", "")
                 if (play_state.playable_cards.includes(c)) {
                     clickable = true
                 }
                 return { unicode: cardsLookup[c2], clickable, card: c }
-            }),
+            })
+        }
+        else{
+            cards = []
+        }
+        message.htmlFragment = pug.renderFile("views/spelend.pug", {
+            speler1: next_players[1],
+            speler2: next_players[2],
+            speler3: next_players[3],
+            cards,
             cards_on_table: play_state.cards_on_table.map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2]}
@@ -112,6 +123,7 @@ class Player {
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} SPELEND`)
 
     }
     play(card) {
@@ -247,9 +259,9 @@ class Table {
             clear_table_after_displaying_cards = true
             this.play_state= this.wiezen.collect_trick()
         }
-        this.play_state = this.wiezen.play_request(this.play_state)
-        console.log(JSON.stringify(this.play_state, null, 2)+"\n\n")
         if (!this.play_state.game_done) {
+            this.play_state = this.wiezen.play_request(this.play_state)
+            console.log(JSON.stringify(this.play_state, null, 2)+"\n\n")
             for (let p of this.players) {
                 p.update_play_request(this.play_state, this.players)
             }
@@ -287,9 +299,11 @@ function rotate_players(first_player, list) {
 }
 const pub = new Pub()
 wss.on("connection", ws => {
+    console.log(`WS CONNECTION`)
     let player = new Player(ws)
     pub.add_player(player)
     ws.on("message", data => {
+        console.log(`WS RECEIVED data: ${data.toString()} player.name: ${player?.name}`)
         if (player.state === REGISTERING) {
             let name = data.toString().trim()
             player.set_name(name)
@@ -304,6 +318,7 @@ wss.on("connection", ws => {
         }
     })
     ws.on("close", () => {
+        console.log(`WS CLOSED player.name: ${player.name}`)
         player.quit()
     })
     ws.onerror = () => {

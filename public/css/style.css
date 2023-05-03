@@ -139,6 +139,7 @@ body{
   #cards_on_table {
     grid-area: G;
     background-color: rgb(227, 40, 40);
+
   }
   #eigenKaarten {
     grid-area: H;
@@ -147,11 +148,11 @@ body{
   .card {
     display: inline-block;
     margin-right: -6vw;
-    width: 12vw;
+    width: 10vw;
     aspect-ratio: 3 / 5;
     background-color: white;
     border: solid black 1px;
-    font-size: 30vh;
+    font-size: 25vh;
   }
   .clickable {
     background-color:   lemonchiffon;
