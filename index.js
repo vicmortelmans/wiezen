@@ -27,11 +27,6 @@ class Player {
     }
     set_state(state) {
         this.state = state
-        let message = {}
-        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
-        message.id = "content"
-        this.ws.send(JSON.stringify(message))
-        console.log(`WS.SEND ${this.name} AANMELDEN`)
     }
     set_pub(pub) {
         this.pub = pub
@@ -42,6 +37,13 @@ class Player {
     set_name(name) {
         this.name = name
         pub.register(this)
+    }
+    update_registering_player(){
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} AANMELDEN`) 
     }
     update_waiting_players(waiting_players) {
         let message = {}
@@ -134,10 +136,10 @@ class Player {
             this.pub.remove_registering_player(this)
         }
         else if (this.state === WAITING){
-            this.pub.remove_waiting_player(this)
+            //this.pub.remove_waiting_player(this)
         }
         else if (this.state === PLAYING){
-            this.table.remove_player(this)
+            //this.table.remove_player(this)
         }
     }
     back_to_pub(){
@@ -147,26 +149,28 @@ class Player {
 class Pub {
     registering_players
     waiting_players
+    playing_players
     constructor() {
         this.registering_players = []
         this.waiting_players = []
+        this.playing_players = []
     }
     add_player(player) {
         this.registering_players.push(player)
         player.set_state(REGISTERING)
         player.set_pub(this)
+        player.update_registering_player()
     }
     register(player) {
         this.registering_players = this.registering_players.filter(p => player != p)
         let i = 1
         while (true) {
-            if (this.registering_players.map(p => p.name).includes(player.name)) {
+            if (this.waiting_players.map(p => p.name).includes(player.name)) {
                 player.name = player.name + str(i)
             }
             else {
                 break
             }
-
         }
         this.waiting_players.push(player)
         player.set_state(WAITING)
@@ -177,6 +181,9 @@ class Pub {
         }
         else {
             let table = new Table(this.waiting_players)
+            for (let p of this.waiting_players){
+                this.playing_players.push(p)
+            }
             this.waiting_players = []
             table.start_game()
         }
@@ -200,6 +207,13 @@ class Pub {
             this.waiting_players = []
             table.start_game()
         }
+    }
+    find_player (player_name){
+        let player = this.waiting_players.find(p => p.name === player_name)
+        if (!player){
+            player = this.playing_players.find(p => p.name === player_name)
+        }
+        return player
     }
 }
 class Table {
@@ -300,26 +314,42 @@ function rotate_players(first_player, list) {
 const pub = new Pub()
 wss.on("connection", ws => {
     console.log(`WS CONNECTION`)
-    let player = new Player(ws)
-    pub.add_player(player)
+    let player = null
     ws.on("message", data => {
+        let message = data.toString().trim()
         console.log(`WS RECEIVED data: ${data.toString()} player.name: ${player?.name}`)
-        if (player.state === REGISTERING) {
-            let name = data.toString().trim()
+        if (!player){
+            if (!message){
+                player  = new Player(ws)
+                pub.add_player(player)
+            }
+            else{
+                player = pub.find_player(message)
+                if (!player){
+                    player  = new Player(ws)
+                    pub.add_player(player)
+                }
+                else {
+                    player.ws = ws
+                }
+            }
+        }
+        else if (player.state === REGISTERING) {
+            let name = message
             player.set_name(name)
         }
         else if (player.state === BIDDING) {
-            let bid = data.toString().trim()
+            let bid = message
             player.bid(bid)
         }
         else if (player.state === PLAYING) {
-            let card = data.toString().trim()
+            let card = message
             player.play(card)
         }
     })
     ws.on("close", () => {
-        console.log(`WS CLOSED player.name: ${player.name}`)
-        player.quit()
+        console.log(`WS CLOSED player.name: ${player && player.name}`)
+        player && player.quit()
     })
     ws.onerror = () => {
         console.log("Some error occurred")

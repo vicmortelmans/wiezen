@@ -1,4 +1,8 @@
 let update = true
+let ws = new WebSocket(ws_URL)
+ws.addEventListener('open', function(){
+    ws.send("")
+})
 ws.addEventListener('message', function (event){
     console.log("message reveived" + event.data)
     message = JSON.parse(event.data)
@@ -11,6 +15,12 @@ ws.addEventListener('message', function (event){
     }
     //Dit is enkel voor debugging. Weg in productie
     play_random_card()
+})
+ws.addEventListener('close', function (){
+    ws = new WebSocket(ws_URL)
+    ws.addEventListener('open', function(){
+        ws.send(player_name)
+    })
 })
 //Dit is enkel voor debugging. Weg in productie
 function play_random_card(){

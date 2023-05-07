@@ -6,10 +6,11 @@ div#AANMELDEN
     p#AantalWachtend Er zijn momenteel #{aantal} spelers aan het wachten
     p#AantalWachtend #{message}
 script.
+    var player_name = ""
     document.getElementById("Knop").addEventListener("click", () => {
         update = true
-        let naam = (document.getElementById("input").value)
-        ws.send(naam)
+        player_name = (document.getElementById("input").value)
+        ws.send(player_name)
     })
     document.getElementById("input").addEventListener("change", () => {
         update = false
@@ -28,4 +29,5 @@ script.
     }
     fake_name = makeid(5)
     ws.send(fake_name)
+    player_name = fake_name 
     //@ sourceURL=aanmelden.js

@@ -7,5 +7,6 @@ html
     body
         div#content
 
-        script const ws = new WebSocket(`wss://${location.hostname}#{ws_port_suffix}#{ws_port}`)
+        script. 
+            var ws_URL = `wss://${location.hostname}#{ws_port_suffix}#{ws_port}`
         script(src="script/script.js")
