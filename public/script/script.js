@@ -11,8 +11,10 @@ function add_event_listeners (ws){
             const new_content = document.createRange().createContextualFragment(message.htmlFragment);
             target.append(new_content);
         }
-        //Dit is enkel voor debugging. Weg in productie
-        play_random_card()
+        //Dit is enkel voor debugging. Uitgeschakeld in productie
+        if (debug_mode) {
+            play_random_card()
+        }
     })
     ws.addEventListener('close', function (){
         window.ws = new WebSocket(ws_URL)

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "debug": "nodemon --inspect index.js",
+    "debug": "PORT=3010 nodemon --inspect index.js",
     "build-docs": "jsdoc wiezen.js",
     "deploy": "pm2 restart index"
   },

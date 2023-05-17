@@ -3,9 +3,8 @@ div#AANMELDEN
         label#Naamvraag Voer je naam in 
         input#input()
         button#Knop Submit
-    p#AantalWachtend Er zijn momenteel #{aantal} spelers aan het wachten
-    p#AantalWachtend #{message}
 script.
+    var debug_mode = #{debug_mode}
     var player_name = ""
     document.getElementById("Knop").addEventListener("click", () => {
         update = true
@@ -15,7 +14,7 @@ script.
     document.getElementById("input").addEventListener("change", () => {
         update = false
     })
-    //Deze code is alleen voor debuggen. Weg doen in productie
+    //Deze code is alleen voor debuggen. Uitgeschakeld in productie
     function makeid(length) {
         let result = '';
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -27,7 +26,9 @@ script.
         }
         return result;
     }
-    fake_name = makeid(5)
-    ws.send(fake_name)
-    player_name = fake_name 
+    if (debug_mode) {
+        fake_name = makeid(5)
+        ws.send(fake_name)
+        player_name = fake_name 
+    }
     //@ sourceURL=aanmelden.js

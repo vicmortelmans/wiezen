@@ -1,9 +1,11 @@
 const express = require("express")
 const app = express()
 const Wiezen = require("./wiezen")
-const http_port = process.env.CODE_SERVER_PORT_HTTP || 3000
-const ws_port = process.env.CODE_SERVER_PORT_WS || 3001
-const server_mode = process.env.CODE_SERVER_MODE || 'DEPLOY'
+console.log(`Debug mode is: ${!!process.env.PORT}`)
+const debug_mode = !!process.env.PORT  // this variable is set in package.json when 'npm run debug'
+                                       // ASSERT that this variable is not set on production user account!
+const http_port = debug_mode ? 3010 : 3000
+const ws_port = debug_mode ? 3011 : 3001
 const host = '127.0.0.1'
 const pug = require("pug")
 const WAITING = "waiting"
@@ -41,7 +43,9 @@ class Player {
     }
     update_registering_player(){
         let message = {}
-        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
+            debug_mode
+        })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} AANMELDEN`) 
@@ -52,7 +56,8 @@ class Player {
         message.htmlFragment = pug.renderFile("views/wachtend.pug", {
             aantal: waiting_players.length,
             naam: this.name,
-            clients: waiting_players.filter(p => p.naam)
+            clients: waiting_players.filter(p => p.naam),
+            debug_mode
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -84,7 +89,8 @@ class Player {
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2], card: c }
-            })
+            }),
+            debug_mode
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -123,7 +129,7 @@ class Player {
             }),
             trump: play_state.trump,
             player_turn: play_state.player,
-            
+            debug_mode
 
         })
         message.id = "content"

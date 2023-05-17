@@ -21,6 +21,7 @@ div.container
             div.card #{c.unicode}
     
 script.
+    var debug_mode = #{debug_mode}
     document.querySelectorAll('.bidOptieKnoppen').forEach(item => {
         item.addEventListener('click', function () {
             ws.send(this.textContent)
