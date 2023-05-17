@@ -22,6 +22,7 @@ class Player {
     state
     pub
     table
+    screen
     constructor(ws) {
         this.ws = ws
     }
@@ -44,6 +45,7 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} AANMELDEN`) 
+        this.screen = message
     }
     update_waiting_players(waiting_players) {
         let message = {}
@@ -55,6 +57,7 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} WACHTEND`)
+        this.screen = message
     }
     update_bid_request(bidding_state, score, players) {
         let playerNames = players.map(p => p.name)
@@ -86,7 +89,7 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} STARTEN`)
-
+        this.screen = message
     }
     bid(bid) {
         this.table.bid(bid)
@@ -126,7 +129,7 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} SPELEND`)
-
+        this.screen = message
     }
     play(card) {
         this.table.play(card)
@@ -136,14 +139,21 @@ class Player {
             this.pub.remove_registering_player(this)
         }
         else if (this.state === WAITING){
-            //this.pub.remove_waiting_player(this)
+            this.pub.remove_waiting_player(this)
+        }
+        else if (this.state === BIDDING){
+            this.table.remove_player(this)
         }
         else if (this.state === PLAYING){
-            //this.table.remove_player(this)
+            this.table.remove_player(this)
         }
     }
     back_to_pub(){
         this.pub.back_to_pub(this)
+    }
+    refresh_screen(){
+        this.ws.send(JSON.stringify(this.screen))
+        console.log(`WS.SEND ${this.name} STARTEN`) 
     }
 }
 class Pub {
@@ -331,6 +341,7 @@ wss.on("connection", ws => {
                 }
                 else {
                     player.ws = ws
+                    player.refresh_screen()
                 }
             }
         }
