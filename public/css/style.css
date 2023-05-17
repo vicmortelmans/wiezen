@@ -146,6 +146,7 @@ body{
     background-color: azure;
   }
   .card {
+    font-family: 'SymbolaRegular'; 
     display: inline-block;
     margin-right: -6vw;
     width: 10vw;

@@ -43,9 +43,7 @@ class Player {
     }
     update_registering_player(){
         let message = {}
-        message.htmlFragment = pug.renderFile("views/aanmelden.pug", {
-            debug_mode
-        })
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} AANMELDEN`) 
@@ -57,7 +55,6 @@ class Player {
             aantal: waiting_players.length,
             naam: this.name,
             clients: waiting_players.filter(p => p.naam),
-            debug_mode
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -90,7 +87,6 @@ class Player {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2], card: c }
             }),
-            debug_mode
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -129,8 +125,6 @@ class Player {
             }),
             trump: play_state.trump,
             player_turn: play_state.player,
-            debug_mode
-
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -379,7 +373,8 @@ app.set("view engine", "pug");
 app.get("/", (req, res) => {
     res.render("home", {
         ws_port_suffix: '/proxy/',
-        ws_port: ws_port
+        ws_port: ws_port,
+        debug_mode,
     });
 })
 
