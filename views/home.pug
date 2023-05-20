@@ -3,9 +3,12 @@ html
     head
         title Wiezen 
         link(rel ="stylesheet" type="text/css" href="css/style.css")
+        link(rel="stylesheet" media="screen" href="https://fontlibrary.org//face/symbola" type="text/css") 
         meta(name="viewport" content="width=device-width, initial-scale=1")
     body
         div#content
 
-        script const ws = new WebSocket(`wss://${location.hostname}#{ws_port_suffix}#{ws_port}`)
+        script. 
+            var debug_mode = #{debug_mode}
+            var ws_URL = `wss://${location.hostname}#{ws_port_suffix}#{ws_port}`
         script(src="script/script.js")

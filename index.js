@@ -1,9 +1,11 @@
 const express = require("express")
 const app = express()
 const Wiezen = require("./wiezen")
-const http_port = process.env.CODE_SERVER_PORT_HTTP || 3000
-const ws_port = process.env.CODE_SERVER_PORT_WS || 3001
-const server_mode = process.env.CODE_SERVER_MODE || 'DEPLOY'
+console.log(`Debug mode is: ${!!process.env.PORT}`)
+const debug_mode = !!process.env.PORT  // this variable is set in package.json when 'npm run debug'
+                                       // ASSERT that this variable is not set on production user account!
+const http_port = debug_mode ? 3010 : 3000
+const ws_port = debug_mode ? 3011 : 3001
 const host = '127.0.0.1'
 const pug = require("pug")
 const WAITING = "waiting"
@@ -22,16 +24,12 @@ class Player {
     state
     pub
     table
+    screen
     constructor(ws) {
         this.ws = ws
     }
     set_state(state) {
         this.state = state
-        let message = {}
-        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
-        message.id = "content"
-        this.ws.send(JSON.stringify(message))
-        console.log(`WS.SEND ${this.name} AANMELDEN`)
     }
     set_pub(pub) {
         this.pub = pub
@@ -43,16 +41,25 @@ class Player {
         this.name = name
         pub.register(this)
     }
+    update_registering_player(){
+        let message = {}
+        message.htmlFragment = pug.renderFile("views/aanmelden.pug")
+        message.id = "content"
+        this.ws.send(JSON.stringify(message))
+        console.log(`WS.SEND ${this.name} AANMELDEN`) 
+        this.screen = message
+    }
     update_waiting_players(waiting_players) {
         let message = {}
         message.htmlFragment = pug.renderFile("views/wachtend.pug", {
             aantal: waiting_players.length,
             naam: this.name,
-            clients: waiting_players.filter(p => p.naam)
+            clients: waiting_players.filter(p => p.naam),
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} WACHTEND`)
+        this.screen = message
     }
     update_bid_request(bidding_state, score, players) {
         let playerNames = players.map(p => p.name)
@@ -79,12 +86,12 @@ class Player {
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2], card: c }
-            })
+            }),
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} STARTEN`)
-
+        this.screen = message
     }
     bid(bid) {
         this.table.bid(bid)
@@ -118,13 +125,11 @@ class Player {
             }),
             trump: play_state.trump,
             player_turn: play_state.player,
-            
-
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} SPELEND`)
-
+        this.screen = message
     }
     play(card) {
         this.table.play(card)
@@ -136,6 +141,9 @@ class Player {
         else if (this.state === WAITING){
             this.pub.remove_waiting_player(this)
         }
+        else if (this.state === BIDDING){
+            this.table.remove_player(this)
+        }
         else if (this.state === PLAYING){
             this.table.remove_player(this)
         }
@@ -143,30 +151,36 @@ class Player {
     back_to_pub(){
         this.pub.back_to_pub(this)
     }
+    refresh_screen(){
+        this.ws.send(JSON.stringify(this.screen))
+        console.log(`WS.SEND ${this.name} STARTEN`) 
+    }
 }
 class Pub {
     registering_players
     waiting_players
+    playing_players
     constructor() {
         this.registering_players = []
         this.waiting_players = []
+        this.playing_players = []
     }
     add_player(player) {
         this.registering_players.push(player)
         player.set_state(REGISTERING)
         player.set_pub(this)
+        player.update_registering_player()
     }
     register(player) {
         this.registering_players = this.registering_players.filter(p => player != p)
         let i = 1
         while (true) {
-            if (this.registering_players.map(p => p.name).includes(player.name)) {
+            if (this.waiting_players.map(p => p.name).includes(player.name)) {
                 player.name = player.name + str(i)
             }
             else {
                 break
             }
-
         }
         this.waiting_players.push(player)
         player.set_state(WAITING)
@@ -177,6 +191,9 @@ class Pub {
         }
         else {
             let table = new Table(this.waiting_players)
+            for (let p of this.waiting_players){
+                this.playing_players.push(p)
+            }
             this.waiting_players = []
             table.start_game()
         }
@@ -200,6 +217,13 @@ class Pub {
             this.waiting_players = []
             table.start_game()
         }
+    }
+    find_player (player_name){
+        let player = this.waiting_players.find(p => p.name === player_name)
+        if (!player){
+            player = this.playing_players.find(p => p.name === player_name)
+        }
+        return player
     }
 }
 class Table {
@@ -300,26 +324,43 @@ function rotate_players(first_player, list) {
 const pub = new Pub()
 wss.on("connection", ws => {
     console.log(`WS CONNECTION`)
-    let player = new Player(ws)
-    pub.add_player(player)
+    let player = null
     ws.on("message", data => {
+        let message = data.toString().trim()
         console.log(`WS RECEIVED data: ${data.toString()} player.name: ${player?.name}`)
-        if (player.state === REGISTERING) {
-            let name = data.toString().trim()
+        if (!player){
+            if (!message){
+                player  = new Player(ws)
+                pub.add_player(player)
+            }
+            else{
+                player = pub.find_player(message)
+                if (!player){
+                    player  = new Player(ws)
+                    pub.add_player(player)
+                }
+                else {
+                    player.ws = ws
+                    player.refresh_screen()
+                }
+            }
+        }
+        else if (player.state === REGISTERING) {
+            let name = message
             player.set_name(name)
         }
         else if (player.state === BIDDING) {
-            let bid = data.toString().trim()
+            let bid = message
             player.bid(bid)
         }
         else if (player.state === PLAYING) {
-            let card = data.toString().trim()
+            let card = message
             player.play(card)
         }
     })
     ws.on("close", () => {
-        console.log(`WS CLOSED player.name: ${player.name}`)
-        player.quit()
+        console.log(`WS CLOSED player.name: ${player && player.name}`)
+        player && player.quit()
     })
     ws.onerror = () => {
         console.log("Some error occurred")
@@ -332,7 +373,8 @@ app.set("view engine", "pug");
 app.get("/", (req, res) => {
     res.render("home", {
         ws_port_suffix: '/proxy/',
-        ws_port: ws_port
+        ws_port: ws_port,
+        debug_mode,
     });
 })
 
