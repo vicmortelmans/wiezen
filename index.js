@@ -61,7 +61,7 @@ class Player {
         console.log(`WS.SEND ${this.name} WACHTEND`)
         this.screen = message
     }
-    update_bid_request(bidding_state, score, players) {
+    update_bid_request(bidding_state, score, players, play_state) {
         let playerNames = players.map(p => p.name)
         let message = {}
         let scoreFactor
@@ -83,10 +83,12 @@ class Player {
             speler4: playerNames[3],
             bidopties: bidopties,
             score : score,
+            highest_bid: bidding_state.game,
+            trump: bidding_state.trump,
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2], card: c }
-            }),
+            })
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -258,14 +260,14 @@ class Table {
         this.bidding_state = this.wiezen.bid_request(this.bidding_state)
         if (this.bidding_state.players_bidding.length > 0) {
             for (let p of this.players) {
-                p.update_bid_request(this.bidding_state, this.score, this.players)// TO DO: IMPLEMENT SCORE!!!
+                p.update_bid_request(this.bidding_state, this.score, this.players, this.play_state)// TO DO: IMPLEMENT SCORE!!!
             }
         }
         else {
             this.play_state = this.wiezen.initialize_play()
             if (this.play_state.game_playable) {
                 this.play_state = this.wiezen.play_request(this.play_state)
-                for (let p of this.players) {
+                    for (let p of this.players) {
                     p.set_state(PLAYING)
                     p.update_play_request(this.play_state, this.players)
                 }
