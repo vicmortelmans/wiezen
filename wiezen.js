@@ -78,6 +78,7 @@ class Wiezen {
     initialize_bid() {
         let games = [...Wiezen.GAMES].filter(game => !game.includes(this.trump))
         this.bidding = {
+            trump: this.trump,
             game: Wiezen.PAS,
             game_players: [],
             games_open: games,
