@@ -47,9 +47,9 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} AANMELDEN`) 
-        console.log(`List registering players: ${this.pub.registering_players}`)
-        console.log(`List waiting players: ${this.pub.waiting_players}`)
-        console.log(`List playing players: ${this.pub.playing_players}`)
+        console.log(`List registering players: ${this.pub.registering_players.map(p => p.name)}`)
+        console.log(`List waiting players: ${this.pub.waiting_players.map(p => p.name)}`)
+        console.log(`List playing players: ${this.pub.playing_players.map(p => p.name)}`)
         this.screen = message
     }
     update_waiting_players(waiting_players) {
@@ -62,9 +62,9 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} WACHTEND`)
-        console.log(`List registering players: ${this.pub.registering_players}`)
-        console.log(`List waiting players: ${this.pub.waiting_players}`)
-        console.log(`List playing players: ${this.pub.playing_players}`)
+        console.log(`List registering players: ${this.pub.registering_players.map(p => p.name)}`)
+        console.log(`List waiting players: ${this.pub.waiting_players.map(p => p.name)}`)
+        console.log(`List playing players: ${this.pub.playing_players.map(p => p.name)}`)
         this.screen = message
     }
     update_bid_request(bidding_state, score, players, play_state) {
@@ -100,9 +100,9 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} STARTEN`)
-        console.log(`List registering players: ${this.pub.registering_players}`)
-        console.log(`List waiting players: ${this.pub.waiting_players}`)
-        console.log(`List playing players: ${this.pub.playing_players}`)
+        console.log(`List registering players: ${this.pub.registering_players.map(p => p.name)}`)
+        console.log(`List waiting players: ${this.pub.waiting_players.map(p => p.name)}`)
+        console.log(`List playing players: ${this.pub.playing_players.map(p => p.name)}`)
         this.screen = message
     }
     bid(bid) {
@@ -143,9 +143,9 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} SPELEND`)
-        console.log(`List registering players: ${this.pub.registering_players}`)
-        console.log(`List waiting players: ${this.pub.waiting_players}`)
-        console.log(`List playing players: ${this.pub.playing_players}`)
+        console.log(`List registering players: ${this.pub.registering_players.map(p => p.name)}`)
+        console.log(`List waiting players: ${this.pub.waiting_players.map(p => p.name)}`)
+        console.log(`List playing players: ${this.pub.playing_players.map(p => p.name)}`)
         this.screen = message
     }
     play(card) {
