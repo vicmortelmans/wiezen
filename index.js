@@ -57,7 +57,6 @@ class Player {
         message.htmlFragment = pug.renderFile("views/wachtend.pug", {
             aantal: waiting_players.length,
             name: this.name,
-            clients: waiting_players.filter(p => p.naam),
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -223,8 +222,12 @@ class Pub {
     remove_waiting_player(player){
         this.waiting_players = this.waiting_players.filter(p => player != p)
     }
+    remove_playing_player(player){
+        this.playing_players = this.playing_players.filter(p => player !=p )
+    }
     back_to_pub(player){
         this.waiting_players.push(player)
+        this.remove_playing_player(player)
         player.set_state(WAITING)
         if (this.waiting_players.length < 4) {
             for (let w of this.waiting_players) {
@@ -323,6 +326,7 @@ class Table {
         for (let p of other_players){
             p.back_to_pub()
         }
+        player.pub.remove_playing_player(player)
     }
 
 }
@@ -381,6 +385,7 @@ wss.on("connection", ws => {
     ws.on("close", () => {
         console.log(`WS CLOSED player.name: ${player && player.name}`)
         player && player.quit()
+
     })
     ws.onerror = () => {
         console.log("Some error occurred")
