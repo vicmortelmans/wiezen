@@ -47,18 +47,24 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} AANMELDEN`) 
+        console.log(`List registering players: ${this.pub.registering_players}`)
+        console.log(`List waiting players: ${this.pub.waiting_players}`)
+        console.log(`List playing players: ${this.pub.playing_players}`)
         this.screen = message
     }
     update_waiting_players(waiting_players) {
         let message = {}
         message.htmlFragment = pug.renderFile("views/wachtend.pug", {
             aantal: waiting_players.length,
-            naam: this.name,
+            name: this.name,
             clients: waiting_players.filter(p => p.naam),
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} WACHTEND`)
+        console.log(`List registering players: ${this.pub.registering_players}`)
+        console.log(`List waiting players: ${this.pub.waiting_players}`)
+        console.log(`List playing players: ${this.pub.playing_players}`)
         this.screen = message
     }
     update_bid_request(bidding_state, score, players, play_state) {
@@ -83,8 +89,9 @@ class Player {
             speler4: playerNames[3],
             bidopties: bidopties,
             score : score,
-            highest_bid: bidding_state.game,
             trump: bidding_state.trump,
+            highest_bid: bidding_state.game,
+            players_with_highest_bid: bidding_state.game_players,
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
                 return { unicode: cardsLookup[c2], card: c }
@@ -93,6 +100,9 @@ class Player {
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} STARTEN`)
+        console.log(`List registering players: ${this.pub.registering_players}`)
+        console.log(`List waiting players: ${this.pub.waiting_players}`)
+        console.log(`List playing players: ${this.pub.playing_players}`)
         this.screen = message
     }
     bid(bid) {
@@ -127,10 +137,15 @@ class Player {
             }),
             trump: play_state.trump,
             player_turn: play_state.player,
+            highest_bid: play_state.game,
+            players_with_highest_bid: play_state.game_players,
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
         console.log(`WS.SEND ${this.name} SPELEND`)
+        console.log(`List registering players: ${this.pub.registering_players}`)
+        console.log(`List waiting players: ${this.pub.waiting_players}`)
+        console.log(`List playing players: ${this.pub.playing_players}`)
         this.screen = message
     }
     play(card) {
@@ -176,9 +191,11 @@ class Pub {
     register(player) {
         this.registering_players = this.registering_players.filter(p => player != p)
         let i = 1
+        let original_name = player.name
         while (true) {
-            if (this.waiting_players.map(p => p.name).includes(player.name)) {
-                player.name = player.name + str(i)
+            if (this.find_player(player.name)) {
+                player.name = original_name + i.toString()
+                i++
             }
             else {
                 break
@@ -215,7 +232,7 @@ class Pub {
             }
         }
         else {
-            let table = new table(this.waiting_players)
+            let table = new Table(this.waiting_players)
             this.waiting_players = []
             table.start_game()
         }
@@ -256,6 +273,7 @@ class Table {
         }
     }
     bid(bid) {
+        console.log(`table: ${this.players.map(p => p.name)}`)
         this.bidding_state = this.wiezen.bid(bid)
         this.bidding_state = this.wiezen.bid_request(this.bidding_state)
         if (this.bidding_state.players_bidding.length > 0) {
@@ -287,7 +305,6 @@ class Table {
         }
         if (!this.play_state.game_done) {
             this.play_state = this.wiezen.play_request(this.play_state)
-            console.log(JSON.stringify(this.play_state, null, 2)+"\n\n")
             for (let p of this.players) {
                 p.update_play_request(this.play_state, this.players)
             }
@@ -344,6 +361,7 @@ wss.on("connection", ws => {
                 else {
                     player.ws = ws
                     player.refresh_screen()
+                    player.table && console.log(player.table.players.map(p => p.name))
                 }
             }
         }
