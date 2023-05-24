@@ -93,7 +93,7 @@ class Player {
             players_with_highest_bid: bidding_state.game_players,
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
-                return { unicode: cardsLookup[c2], card: c }
+                return { unicode: cardsLookup[c2], card: c, color: (c.card.startsWith("♥") || c.card.startsWith("♦")) ?"red": "black"}
             })
         })
         message.id = "content"
