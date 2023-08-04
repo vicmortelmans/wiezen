@@ -197,7 +197,7 @@ class Wiezen {
      * - {object} winning_card - the card id on the table that is currently winning
      * - {array} hands - key: player name, value: array of card id's held by that player
      *     (card id's include trump marker '*')
-     * - {array} tricks_per_player - key: player name, value: number counting the tricks won by that player
+     * - {object} tricks_per_player - key: player name, value: number counting the tricks won by that player
      * - {number} count_tricks - how many tricks have been played 
      * - {boolean} game_done: set true after the last trick has been played
      */

@@ -1,5 +1,6 @@
 const express = require("express")
 const app = express()
+const { v4: uuidv4 } = require('uuid')
 const Wiezen = require("./wiezen")
 console.log(`Debug mode is: ${!!process.env.PORT}`)
 const debug_mode = !!process.env.PORT  // this variable is set in package.json when 'npm run debug'
@@ -52,11 +53,12 @@ class Player {
         console.log(`List playing players: ${this.pub.playing_players.map(p => p.name)}`)
         this.screen = message
     }
-    update_waiting_players(waiting_players) {
+    update_waiting_players(waiting_players, ex_player) {
         let message = {}
         message.htmlFragment = pug.renderFile("views/wachtend.pug", {
             aantal: waiting_players.length,
             name: this.name,
+            alert: ex_player ?  `Speler ${ex_player.name} heeft het spel verlaten` : ``,
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -93,8 +95,9 @@ class Player {
             players_with_highest_bid: bidding_state.game_players,
             cards: bidding_state.hands[this.name].map(c => {
                 let c2 = c.replace("*", "")
-                return { unicode: cardsLookup[c2], card: c, color: (c.card.startsWith("♥") || c.card.startsWith("♦")) ?"red": "black"}
-            })
+                return { unicode: cardsLookup[c2], card: c, color: (c.startsWith("♥") || c.startsWith("♦")) ?"red": "black"}
+            }),
+            uid: this.table.uid
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -119,7 +122,7 @@ class Player {
                 if (play_state.playable_cards.includes(c)) {
                     clickable = true
                 }
-                return { unicode: cardsLookup[c2], clickable, card: c }
+                return { unicode: cardsLookup[c2], clickable, card: c, color: (c.startsWith("♥") || c.startsWith("♦")) ?"red": "black" }
             })
         }
         else{
@@ -129,15 +132,17 @@ class Player {
             speler1: next_players[1],
             speler2: next_players[2],
             speler3: next_players[3],
+            speler0: next_players[0],
             cards,
             cards_on_table: play_state.cards_on_table.map(c => {
                 let c2 = c.replace("*", "")
-                return { unicode: cardsLookup[c2]}
+                return { unicode: cardsLookup[c2], color: (c.startsWith("♥") || c.startsWith("♦")) ?"red": "black"}
             }),
             trump: play_state.trump,
             player_turn: play_state.player,
             highest_bid: play_state.game,
             players_with_highest_bid: play_state.game_players,
+            tricks: play_state.tricks_per_player
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -164,8 +169,8 @@ class Player {
             this.table.remove_player(this)
         }
     }
-    back_to_pub(){
-        this.pub.back_to_pub(this)
+    back_to_pub(ex_player){
+        this.pub.back_to_pub(this, ex_player)
     }
     refresh_screen(){
         this.ws.send(JSON.stringify(this.screen))
@@ -225,13 +230,13 @@ class Pub {
     remove_playing_player(player){
         this.playing_players = this.playing_players.filter(p => player !=p )
     }
-    back_to_pub(player){
+    back_to_pub(player, ex_player){
         this.waiting_players.push(player)
         this.remove_playing_player(player)
         player.set_state(WAITING)
         if (this.waiting_players.length < 4) {
             for (let w of this.waiting_players) {
-                w.update_waiting_players(this.waiting_players)
+                w.update_waiting_players(this.waiting_players, ex_player)
             }
         }
         else {
@@ -254,6 +259,7 @@ class Table {
     bidding_state
     play_state
     score
+    uid
     constructor(players) {
         this.players = players
         this.wiezen = new Wiezen(this.players.map(p => p.name))
@@ -263,6 +269,7 @@ class Table {
             this.score.old_cumulative_score[p.name] = 0
             this.score.new_cumulative_score[p.name] = 0
         }
+        this.uid = uuidv4()
     }
     start_game() {
         this.wiezen.cut()
@@ -324,7 +331,7 @@ class Table {
     remove_player(player){
         let other_players = this.players.filter(p => player != p)
         for (let p of other_players){
-            p.back_to_pub()
+            p.back_to_pub(player)
         }
         player.pub.remove_playing_player(player)
     }

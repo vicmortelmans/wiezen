@@ -101,6 +101,10 @@ body{
     width: 22vh;
     margin: 1vh;
   }
+
+
+
+
   .container_spelend{
     display: grid;
     gap: 20px;
@@ -154,6 +158,9 @@ body{
     background-color: white;
     border: solid black 1px;
     font-size: 25vh;
+  }
+  .red{
+    color: red
   }
   .clickable {
     background-color:   lemonchiffon;

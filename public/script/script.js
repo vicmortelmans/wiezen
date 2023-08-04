@@ -12,7 +12,7 @@ function add_event_listeners (ws){
             target.append(new_content);
         }
         //Dit is enkel voor debugging. Uitgeschakeld in productie
-        if (debug_mode) {
+        if (debug_mode && true) {
             play_random_card()
         }
     })
