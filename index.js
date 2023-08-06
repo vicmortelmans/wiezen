@@ -25,6 +25,7 @@ class Player {
     state
     pub
     table
+    table_name
     screen
     constructor(ws) {
         this.ws = ws
@@ -38,8 +39,9 @@ class Player {
     set_table(table) {
         this.table = table
     }
-    set_name(name) {
+    register(name, table_name) {
         this.name = name
+        this.table_name = table_name
         pub.register(this)
     }
     update_registering_player(){
@@ -59,6 +61,7 @@ class Player {
             aantal: waiting_players.length,
             name: this.name,
             alert: ex_player ?  `Speler ${ex_player.name} heeft het spel verlaten` : ``,
+            table_name: this.table_name,
         })
         message.id = "content"
         this.ws.send(JSON.stringify(message))
@@ -207,17 +210,22 @@ class Pub {
         }
         this.waiting_players.push(player)
         player.set_state(WAITING)
-        if (this.waiting_players.length < 4) {
-            for (let w of this.waiting_players) {
-                w.update_waiting_players(this.waiting_players)
+        let player_friends = this.waiting_players.filter(function(p){
+            return (player.table_name === p.table_name)
+        })
+        if (player_friends.length < 4) {
+            for (let w of player_friends) {
+                w.update_waiting_players(player_friends)
             }
         }
         else {
-            let table = new Table(this.waiting_players)
-            for (let p of this.waiting_players){
+            let table = new Table(player_friends)
+            for (let p of player_friends){
                 this.playing_players.push(p)
             }
-            this.waiting_players = []
+            this.waiting_players = this.waiting_players.filter(function(p){
+                return (!player_friends.includes(p))
+            })
             table.start_game()
         }
     }
@@ -359,7 +367,8 @@ wss.on("connection", ws => {
         let message = data.toString().trim()
         console.log(`WS RECEIVED data: ${data.toString()} player.name: ${player?.name}`)
         if (!player){
-            if (!message){
+            if (!message){ 
+                //New player
                 player  = new Player(ws)
                 pub.add_player(player)
             }
@@ -370,6 +379,7 @@ wss.on("connection", ws => {
                     pub.add_player(player)
                 }
                 else {
+                    //reconnect old player
                     player.ws = ws
                     player.refresh_screen()
                     player.table && console.log(player.table.players.map(p => p.name))
@@ -377,8 +387,9 @@ wss.on("connection", ws => {
             }
         }
         else if (player.state === REGISTERING) {
-            let name = message
-            player.set_name(name)
+            let name = JSON.parse(message).player_name
+            let table_name = JSON.parse(message).table_name
+            player.register(name, table_name)
         }
         else if (player.state === BIDDING) {
             let bid = message
