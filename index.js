@@ -1,6 +1,9 @@
 const express = require("express")
 const app = express()
 const Wiezen = require("./wiezen")
+const util = require('util')
+const Game_C4 = require('mcts/game-c4.js')
+const MonteCarlo = require('mcts/monte-carlo.js')
 console.log(`Debug mode is: ${!!process.env.PORT}`)
 const debug_mode = !!process.env.PORT  // this variable is set in package.json when 'npm run debug'
                                        // ASSERT that this variable is not set on production user account!
@@ -170,6 +173,71 @@ class Player {
     refresh_screen(){
         this.ws.send(JSON.stringify(this.screen))
         console.log(`WS.SEND ${this.name} STARTEN`) 
+    }
+}
+class MCTS_Player {
+    ws
+    name
+    state
+    pub
+    table
+    screen
+    constructor(ws) {
+        // TODO MCTS_Player has no ws
+        this.ws = ws
+        
+        // initialize Monte Carlo Tree Search
+        let game = new Game_C4(ai_player, players, trump, min_max)
+        let mcts = new MonteCarlo(game)
+
+        let state = game.start()
+        let winner = game.winner(state)
+    }
+    set_state(state) {
+        this.state = state
+    }
+    set_pub(pub) {
+        this.pub = pub
+    }
+    set_table(table) {
+        this.table = table
+    }
+    set_name(name) {
+        // MCTS_Player doesn't receive calls from client 
+    }
+    update_registering_player(){
+        // TODO MCTS_Player should set name and call pub.register(this) when receiving this call 
+        pub.register("Jean")
+    }
+    update_waiting_players(waiting_players) {
+        // MCTS_Player nothing to do here
+    }
+    update_bid_request(bidding_state, score, players, play_state) {
+        let bidopties = []
+        if (bidding_state.player === this.name) {
+            bidopties = bidding_state.games_open_mee
+        }
+        // TODO MCTS_Player if it's his turn, should call this.table.bid(bid) with bid from bidopties
+        if (bidding_state.player === this.name)
+            this.table.bid('pas')
+    }
+    bid(bid) {
+        // MCTS_Player doesn't receive calls from client 
+    }
+    update_play_request(play_state, players) {
+        // TODO MCTS_Player if it's his turn, should call this.table.play(card) with card from play_state.playable_cards
+    }
+    play(card) {
+        // MCTS_Player doesn't receive calls from client 
+    }
+    quit(){
+        // MCTS_Player doesn't quit
+    }
+    back_to_pub(){
+        // MCTS_Player just vanishes
+    }
+    refresh_screen(){
+        // MCTS_Player has no screen
     }
 }
 class Pub {
