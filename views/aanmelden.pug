@@ -1,20 +1,26 @@
 div#AANMELDEN
     div#invoerVeld
-        label#Naamvraag Voer je naam in 
-        input#input()
-        button#Knop Submit
+        p
+            label#Naamvraag Enter your name 
+            input#input()
+        p
+            label Reserve a table for your friends 
+            input#inputTable()
+            button#Knop Submit
 script.
     var player_name = ""
     document.getElementById("Knop").addEventListener("click", () => {
         update = true
-        player_name = (document.getElementById("input").value)
-        ws.send(player_name)
+        player_name = document.getElementById("input").value
+        let table_name = document.getElementById("inputTable").value
+        let message = {player_name, table_name}
+        ws.send(JSON.stringify(message))
     })
     document.getElementById("input").addEventListener("change", () => {
         update = false
     })
     //Deze code is alleen voor debuggen. Uitgeschakeld in productie
-    function makeid(length) {
+    /*function makeid(length) {
         let result = '';
         const characters = 'a';
         const charactersLength = characters.length;
@@ -25,9 +31,10 @@ script.
         }
         return result;
     }
-    if (debug_mode && false) {
+    if (debug_mode && true) {
         fake_name = makeid(5)
         ws.send(fake_name)
         player_name = fake_name 
-    }
+    } 
+    */
     //@ sourceURL=aanmelden.js
